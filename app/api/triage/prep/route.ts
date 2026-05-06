@@ -8,6 +8,8 @@ import {
   updateQueryWithPrep,
   markQueryFailed
 } from "@/lib/triage/persistence";
+import { renderCasePrepPdf } from "@/lib/pdf/case-prep";
+import { uploadCasePrepPdf } from "@/lib/storage/case-prep";
 
 export const runtime = "nodejs";
 
@@ -61,19 +63,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Prep failed." }, { status: 502 });
   }
 
-  // PDF generation lands in a follow-up commit; for now we persist the
-  // structured prep and surface it to the client without a stored URL.
-  if (parsed.query_id) {
+  let pdfUrl: string | null = null;
+  if (parsed.query_id && userId) {
+    try {
+      const pdf = await renderCasePrepPdf({
+        classification,
+        prep,
+        generatedAt: new Date(),
+        queryId: parsed.query_id
+      });
+      pdfUrl = await uploadCasePrepPdf({
+        userId,
+        queryId: parsed.query_id,
+        pdf
+      });
+    } catch (err) {
+      console.error("[triage/prep] pdf pipeline failed", err);
+    }
+
     await updateQueryWithPrep({
       queryId: parsed.query_id,
       prep,
-      prepPdfUrl: null
+      prepPdfUrl: pdfUrl
     });
   }
 
   return NextResponse.json({
     ok: true,
     disclaimer: TRIAGE_DISCLAIMER,
-    prep
+    prep,
+    prep_pdf_url: pdfUrl
   });
 }

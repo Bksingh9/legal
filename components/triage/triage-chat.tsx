@@ -15,6 +15,7 @@ type PrepResponse = {
   ok: boolean;
   disclaimer: string;
   prep: CasePrep;
+  prep_pdf_url?: string | null;
 };
 
 export function TriageChat() {
@@ -175,6 +176,16 @@ export function TriageChat() {
           ) : null}
 
           <div className="flex flex-wrap gap-3 pt-2">
+            {prep.prep_pdf_url ? (
+              <a
+                href={prep.prep_pdf_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100"
+              >
+                Download Case Prep PDF
+              </a>
+            ) : null}
             <a
               href={`/documents/${suggestSku(classification?.classification)}`}
               className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-700"
