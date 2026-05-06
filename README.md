@@ -4,8 +4,9 @@ AI-powered legal help for India — triage, document automation, and lawyer
 consultations. BCI Rule 36 compliant, DPDP Act 2023 aligned, India-resident data.
 
 The full product spec lives in [`SPEC.md`](./SPEC.md). This README covers the
-Week 1–6 build: landing + waitlist (W1–2), Tier 1 AI triage (W3–4), and Tier 2
-document automation with Razorpay (W5–6).
+Week 1–8 build: landing + waitlist (W1–2), Tier 1 AI triage (W3–4), Tier 2
+document automation with Razorpay (W5–6), and lawyer onboarding + KYC + admin
+queue (W7–8).
 
 ## Stack
 - Next.js 14 App Router + TypeScript + Tailwind
@@ -55,6 +56,12 @@ Migrations live in `supabase/migrations/` and are applied in numbered order.
   currency, captured_at) with a unique partial index for webhook
   deduplication; adds the `lawyer_reviews` queue table with owner +
   assigned-lawyer RLS; creates the private `documents` Storage bucket.
+- `0004_lawyer_extensions.sql` — extends `lawyers` with languages[],
+  anon_slug (unique 12-hex internal id), route_account_id (Razorpay Route),
+  digilocker_uri, and verified/suspended audit columns; backfills
+  anon_slug on existing rows; adds GIN indexes on specializations and
+  languages for the W9–10 match algorithm; adds `lawyer_applications`
+  audit-trail table with applicant-read RLS.
 
 Apply via the Supabase CLI:
 
@@ -74,15 +81,21 @@ app/                 Next.js App Router
   api/triage/        classify, prep, transcribe
   api/documents/     [sku]/preview (validate + render), POST /create-draft
   api/payments/      order, webhook (signature-verified)
+  api/lawyer/        apply (zod-validated, idempotent), me
+  api/admin/lawyers/ Founder-only queue + verify/suspend actions
   auth/login/        Magic-link request form
   auth/callback/     Supabase code-for-session exchange
   triage/            Email-gated triage chat
   documents/         Index + per-SKU guided form / preview / checkout
+  lawyer/            Apply form + status dashboard (owner-only view)
+  admin/lawyers/     Founder-only verification queue UI
   privacy/, terms/
   opengraph-image/, robots.ts, sitemap.ts
 components/landing/  Hero, tiers, compliance banner
 components/triage/   TriageChat, VoiceRecorder, Disclaimer
 components/documents/ DocumentForm, DocumentPreview, CheckoutButton
+components/lawyer/   LawyerApplyForm
+components/admin/    LawyerQueue (tabbed verification dashboard)
 components/auth/     LoginForm
 components/ui/       Button, Input
 lib/anthropic/       Client (real + deterministic mock), prompts, types
@@ -96,6 +109,8 @@ lib/razorpay/        Orders API + signature verification (HMAC-SHA256)
 lib/payments/        Idempotent payment row helpers
 lib/documents/       Document row CRUD
 lib/lawyer-reviews/  Queue insert for the +Rs 499 add-on
+lib/lawyers/         Lawyer types/schemas, persistence, anon-card firewall
+lib/admin/           requireAdmin role gate
 lib/users/           Service-role read of email/phone/name for delivery
 lib/notify/          Resend (email) + AiSensy (WhatsApp) senders
 lib/storage/         Storage bucket helpers (case-prep, documents)
@@ -151,6 +166,30 @@ These steps need credentials only you can create. Once done, share the keys
 3. Create a `document_delivery` template with one media slot and
    `{{user_name}}` + `{{sku}}` parameters.
 
+### 2e. Founder admin role (W7+ lawyer verification queue)
+The `/admin/lawyers` queue and the `/api/admin/lawyers/*` routes are gated
+on `users.role = 'admin'`. To grant yourself admin access:
+
+1. Sign in once via `/auth/login` so a row exists in `auth.users`.
+2. In the Supabase SQL editor:
+
+```sql
+update public.users set role = 'admin' where email = 'founder@legaldesk.ai';
+```
+
+3. Reload the app. `/admin/lawyers` will now load.
+
+In a fresh local checkout (no `NEXT_PUBLIC_SUPABASE_URL`), the admin gate
+falls open so the queue UI can be exercised without a real Supabase project.
+
+### 2f. Razorpay Route (W7+ lawyer payouts)
+No extra credentials beyond `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET`. The
+`/api/lawyer/apply` route attempts to create a Route linked account
+(`POST /v2/accounts`) on each application; failures are non-blocking and
+the admin can retry from the queue. Razorpay enables Route on production
+keys after a separate KYC review on their side — request it before the
+W9–10 lawyer-payout flow goes live.
+
 ### 3. Vercel (hosting)
 1. Import the GitHub repo `Bksingh9/legal` at <https://vercel.com/new>.
 2. Framework preset: **Next.js**. Root directory: repo root.
@@ -186,6 +225,11 @@ curl -X POST https://legaldesk.ai/api/triage/prep \
 curl -X POST https://legaldesk.ai/api/documents/legal-notice/preview \
   -H 'content-type: application/json' \
   -d '{"language":"en","sender":{"name":"X","address":"..."},"recipient":{"name":"Y","address":"..."},"cause":{"date_of_event":"2025-12-01","place":"Mumbai","description":"..."},"demand":{"summary":"refund","deadline_days":15}}'
+# Lawyer apply (auth required in production; payload must include UPI VPA or bank+IFSC)
+curl -X POST https://legaldesk.ai/api/lawyer/apply \
+  -H 'content-type: application/json' \
+  --cookie 'sb-access-token=...' \
+  -d '{"bar_council_id":"D/1234/2018","state":"Maharashtra","years_exp":7,"specializations":["civil","property"],"languages":["en","hi","mr"],"payout":{"legal_business_name":"...","contact_name":"...","contact_email":"x@y.com","contact_phone":"+919999999999","upi_vpa":"x@upi"}}'
 ```
 
 ## CI
@@ -202,7 +246,7 @@ curl -X POST https://legaldesk.ai/api/documents/legal-notice/preview \
 ## Roadmap (next 90 days, immutable)
 - W1–2 scaffold + landing + waitlist  — done
 - W3–4 Tier 1 AI triage — done (mock-tested, awaiting real Anthropic + Supabase keys)
-- W5–6 Tier 2 document automation + Razorpay  ← you are here
-- W7–8 lawyer onboarding + KYC
+- W5–6 Tier 2 document automation + Razorpay — done
+- W7–8 lawyer onboarding + KYC  ← you are here
 - W9–10 Tier 3 consultation flow (Exotel + 100ms)
 - W11–12 subscriptions + referral + 50 SEO articles + bug bash
