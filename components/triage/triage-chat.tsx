@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Disclaimer } from "@/components/triage/disclaimer";
+import { VoiceRecorder } from "@/components/triage/voice-recorder";
 import type { CasePrep, TriageClassification } from "@/lib/anthropic/types";
 
 type ClassifyResponse = TriageClassification & {
@@ -85,20 +86,28 @@ export function TriageChat() {
           placeholder="Example: My landlord has not returned my deposit of Rs 50,000 even three months after I vacated the flat in Mumbai."
           className="w-full rounded-md border border-neutral-300 bg-white p-3 text-sm focus:border-neutral-900 focus:outline-none"
         />
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-neutral-500">
-            {text.length}/4000 characters
-          </p>
-          <Button
-            type="submit"
-            disabled={stage === "classifying" || stage === "prepping" || text.trim().length < 8}
-          >
-            {stage === "classifying"
-              ? "Classifying..."
-              : stage === "prepping"
-                ? "Drafting case prep..."
-                : "Run triage"}
-          </Button>
+        <div className="flex items-center justify-between gap-3">
+          <VoiceRecorder
+            disabled={stage === "classifying" || stage === "prepping"}
+            onTranscribed={(t) =>
+              setText((prev) => (prev ? `${prev.trim()}\n${t}` : t))
+            }
+          />
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-neutral-500">
+              {text.length}/4000 characters
+            </p>
+            <Button
+              type="submit"
+              disabled={stage === "classifying" || stage === "prepping" || text.trim().length < 8}
+            >
+              {stage === "classifying"
+                ? "Classifying..."
+                : stage === "prepping"
+                  ? "Drafting case prep..."
+                  : "Run triage"}
+            </Button>
+          </div>
         </div>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
       </form>
