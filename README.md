@@ -4,7 +4,8 @@ AI-powered legal help for India — triage, document automation, and lawyer
 consultations. BCI Rule 36 compliant, DPDP Act 2023 aligned, India-resident data.
 
 The full product spec lives in [`SPEC.md`](./SPEC.md). This README covers the
-Week 1–4 build: landing + waitlist (W1–2) and the Tier 1 AI triage flow (W3–4).
+Week 1–6 build: landing + waitlist (W1–2), Tier 1 AI triage (W3–4), and Tier 2
+document automation with Razorpay (W5–6).
 
 ## Stack
 - Next.js 14 App Router + TypeScript + Tailwind
@@ -31,6 +32,12 @@ All routes degrade gracefully when their dependencies are missing:
   checkout without spending any tokens.
 - `/api/triage/transcribe` returns a stub transcript when `SARVAM_API_KEY`
   is unset.
+- `/api/payments/order` calls a deterministic Razorpay mock that returns
+  `order_mock_<hex>` ids when `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` are
+  unset; the webhook handler accepts the literal `mock` signature so the
+  finalize path can be walked end-to-end without keys.
+- `/api/payments/webhook` continues to function without `RESEND_API_KEY` or
+  `AISENSY_API_KEY`; both senders fall back to console-only logs.
 
 ## Database
 Migrations live in `supabase/migrations/` and are applied in numbered order.
@@ -42,6 +49,12 @@ Migrations live in `supabase/migrations/` and are applied in numbered order.
   transcript_url, summary, status enum, updated_at; creates the `case-prep`
   and `triage-audio` Storage buckets with owner-only read RLS keyed off
   the leading `{user_id}/` folder in the object path.
+- `0003_documents_payments.sql` — extends `documents` for the SKU model
+  (sku, price_paise, output_docx_url, addon_lawyer_review, language,
+  payment_id, updated_at) and `payments` for Razorpay (razorpay_order_id,
+  currency, captured_at) with a unique partial index for webhook
+  deduplication; adds the `lawyer_reviews` queue table with owner +
+  assigned-lawyer RLS; creates the private `documents` Storage bucket.
 
 Apply via the Supabase CLI:
 
@@ -58,25 +71,36 @@ All tables have RLS enabled. Service-role inserts (e.g. `/api/waitlist`,
 app/                 Next.js App Router
   api/health/        Liveness + dep-config probe
   api/waitlist/      Waitlist intake (zod-validated)
-  api/triage/
-    classify/        Haiku classifier
-    prep/            Sonnet Case Prep + PDF + Storage upload
-    transcribe/      Indic STT (Sarvam) with mock fallback
+  api/triage/        classify, prep, transcribe
+  api/documents/     [sku]/preview (validate + render), POST /create-draft
+  api/payments/      order, webhook (signature-verified)
   auth/login/        Magic-link request form
   auth/callback/     Supabase code-for-session exchange
   triage/            Email-gated triage chat
+  documents/         Index + per-SKU guided form / preview / checkout
   privacy/, terms/
   opengraph-image/, robots.ts, sitemap.ts
 components/landing/  Hero, tiers, compliance banner
 components/triage/   TriageChat, VoiceRecorder, Disclaimer
+components/documents/ DocumentForm, DocumentPreview, CheckoutButton
 components/auth/     LoginForm
 components/ui/       Button, Input
 lib/anthropic/       Client (real + deterministic mock), prompts, types
 lib/triage/          Service-role helpers for the queries table
-lib/pdf/             @react-pdf/renderer Case Prep template
-lib/storage/         Storage bucket helpers (case-prep)
+lib/skus/            SKU registry + zod input schemas (5 launch SKUs)
+lib/templates/       Deterministic structured-doc renderers per SKU
+lib/forms/           FormSpec definitions consumed by DocumentForm
+lib/pdf/             @react-pdf/renderer renderers (Case Prep + generic)
+lib/docx/            docx package renderer (DocumentRender -> .docx)
+lib/razorpay/        Orders API + signature verification (HMAC-SHA256)
+lib/payments/        Idempotent payment row helpers
+lib/documents/       Document row CRUD
+lib/lawyer-reviews/  Queue insert for the +Rs 499 add-on
+lib/users/           Service-role read of email/phone/name for delivery
+lib/notify/          Resend (email) + AiSensy (WhatsApp) senders
+lib/storage/         Storage bucket helpers (case-prep, documents)
 lib/supabase/        Browser + server clients
-supabase/migrations/ SQL migrations
+supabase/migrations/ SQL migrations (0001-0003)
 .github/workflows/   CI (typecheck + lint + build)
 SPEC.md              Product spec v1.0
 ```
@@ -103,6 +127,29 @@ These steps need credentials only you can create. Once done, share the keys
 1. Get a key at <https://www.sarvam.ai/>.
 2. Save as `SARVAM_API_KEY`. Without it, `/api/triage/transcribe` returns a
    stub transcript so the UI still works during development.
+
+### 2b. Razorpay (W5+ payments)
+1. Create an account at <https://dashboard.razorpay.com/>.
+2. Settings -> API Keys -> Generate. Save `RAZORPAY_KEY_ID` and
+   `RAZORPAY_KEY_SECRET`.
+3. Settings -> Webhooks -> Add. URL: `https://legaldesk.ai/api/payments/webhook`.
+   Events: `payment.captured`. Generate a secret and save as
+   `RAZORPAY_WEBHOOK_SECRET`.
+4. Razorpay Route is needed for lawyer payouts in W7-8 — defer until
+   lawyer onboarding lands.
+
+### 2c. Resend (W5+ email delivery)
+1. Create an account at <https://resend.com/>.
+2. Add and verify the sending domain (e.g. legaldesk.ai). Set
+   `RESEND_FROM` to the verified `From` address.
+3. Save the API key as `RESEND_API_KEY`. Without it, the post-payment
+   email send is logged to the server console only.
+
+### 2d. AiSensy (W5+ WhatsApp delivery)
+1. Create an account at <https://www.aisensy.com/>.
+2. Get the API key from Settings and save as `AISENSY_API_KEY`.
+3. Create a `document_delivery` template with one media slot and
+   `{{user_name}}` + `{{sku}}` parameters.
 
 ### 3. Vercel (hosting)
 1. Import the GitHub repo `Bksingh9/legal` at <https://vercel.com/new>.
@@ -135,6 +182,10 @@ curl -X POST https://legaldesk.ai/api/triage/classify \
 curl -X POST https://legaldesk.ai/api/triage/prep \
   -H 'content-type: application/json' \
   -d '{"raw_text":"My landlord has not returned my deposit.","classification":"property","language":"en"}'
+# Document preview (validates against the SKU's zod schema)
+curl -X POST https://legaldesk.ai/api/documents/legal-notice/preview \
+  -H 'content-type: application/json' \
+  -d '{"language":"en","sender":{"name":"X","address":"..."},"recipient":{"name":"Y","address":"..."},"cause":{"date_of_event":"2025-12-01","place":"Mumbai","description":"..."},"demand":{"summary":"refund","deadline_days":15}}'
 ```
 
 ## CI
@@ -150,8 +201,8 @@ curl -X POST https://legaldesk.ai/api/triage/prep \
 
 ## Roadmap (next 90 days, immutable)
 - W1–2 scaffold + landing + waitlist  — done
-- W3–4 Tier 1 AI triage  ← you are here (mock-tested, awaiting real Anthropic + Supabase keys)
-- W5–6 Tier 2 document automation + Razorpay
+- W3–4 Tier 1 AI triage — done (mock-tested, awaiting real Anthropic + Supabase keys)
+- W5–6 Tier 2 document automation + Razorpay  ← you are here
 - W7–8 lawyer onboarding + KYC
 - W9–10 Tier 3 consultation flow (Exotel + 100ms)
 - W11–12 subscriptions + referral + 50 SEO articles + bug bash
