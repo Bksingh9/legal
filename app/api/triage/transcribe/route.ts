@@ -1,0 +1,62 @@
+import { NextResponse } from "next/server";
+import { getCurrentUserId } from "@/lib/triage/persistence";
+
+export const runtime = "nodejs";
+
+// Sarvam.ai for Indic STT. When SARVAM_API_KEY is unset we return a
+// deterministic stub so the rest of the triage pipeline can still be
+// exercised end-to-end against mocks.
+const SARVAM_ENDPOINT = "https://api.sarvam.ai/speech-to-text";
+
+const MAX_BYTES = 12 * 1024 * 1024; // 12 MB cap per upload
+
+export async function POST(req: Request) {
+  const userId = await getCurrentUserId();
+  if (!userId && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ error: "Sign in to triage." }, { status: 401 });
+  }
+
+  const form = await req.formData().catch(() => null);
+  const file = form?.get("audio");
+  if (!(file instanceof Blob)) {
+    return NextResponse.json({ error: "Missing audio." }, { status: 400 });
+  }
+  if (file.size === 0 || file.size > MAX_BYTES) {
+    return NextResponse.json({ error: "Audio too small or too large." }, { status: 413 });
+  }
+
+  const sarvamKey = process.env.SARVAM_API_KEY;
+  if (!sarvamKey) {
+    return NextResponse.json({
+      ok: true,
+      provider: "mock",
+      language: "en",
+      text: "[transcription disabled in mock mode — set SARVAM_API_KEY]"
+    });
+  }
+
+  const upstream = new FormData();
+  upstream.append("file", file, "audio.webm");
+  upstream.append("model", "saarika:v2");
+  upstream.append("language_code", "unknown");
+
+  const res = await fetch(SARVAM_ENDPOINT, {
+    method: "POST",
+    headers: { "api-subscription-key": sarvamKey },
+    body: upstream
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("[triage/transcribe] sarvam failed", res.status, text.slice(0, 300));
+    return NextResponse.json({ error: "Transcription failed." }, { status: 502 });
+  }
+
+  const data = (await res.json()) as { transcript?: string; language_code?: string };
+  return NextResponse.json({
+    ok: true,
+    provider: "sarvam",
+    language: data.language_code === "hi-IN" ? "hi" : "en",
+    text: data.transcript ?? ""
+  });
+}
