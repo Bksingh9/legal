@@ -1,0 +1,49 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getCurrentUserId } from "@/lib/triage/persistence";
+import {
+  getConsultationById,
+  setRecordingConsent,
+  getLawyerByUserId
+} from "@/lib/consult/persistence";
+
+export const runtime = "nodejs";
+
+const Body = z.object({ consent: z.boolean() });
+
+export async function POST(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      return NextResponse.json({ error: "Sign in." }, { status: 401 });
+    }
+    return NextResponse.json({ ok: true, mock: true });
+  }
+  let parsed: z.infer<typeof Body>;
+  try {
+    parsed = Body.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid input." }, { status: 400 });
+  }
+
+  const c = await getConsultationById(params.id);
+  if (!c) return NextResponse.json({ error: "Not found." }, { status: 404 });
+
+  let who: "user" | "lawyer" | null = null;
+  if (c.user_id === userId) who = "user";
+  else {
+    const lw = await getLawyerByUserId(userId);
+    if (lw && lw.id === c.lawyer_id) who = "lawyer";
+  }
+  if (!who) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+
+  await setRecordingConsent({
+    consultationId: params.id,
+    who,
+    consent: parsed.consent
+  });
+  return NextResponse.json({ ok: true, who, consent: parsed.consent });
+}
