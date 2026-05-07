@@ -27,3 +27,11 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: https://legaldesk.ai
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E smoke tests
+        run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
