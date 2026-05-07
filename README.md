@@ -4,9 +4,16 @@ AI-powered legal help for India — triage, document automation, and lawyer
 consultations. BCI Rule 36 compliant, DPDP Act 2023 aligned, India-resident data.
 
 The full product spec lives in [`SPEC.md`](./SPEC.md). This README covers the
-Week 1–10 build: landing + waitlist (W1–2), Tier 1 AI triage (W3–4), Tier 2
-document automation with Razorpay (W5–6), lawyer onboarding + KYC + admin
-queue (W7–8), and the Tier 3 consultation flow with Exotel + 100ms (W9–10).
+full Week 1–12 build:
+
+- W1–2: landing + waitlist
+- W3–4: Tier 1 AI triage with Hindi + voice + signed-PDF Case Prep
+- W5–6: Tier 2 document automation (5 SKUs) + Razorpay one-time payments
+- W7–8: lawyer onboarding + KYC + founder admin queue (BCI Rule 36 enforced)
+- W9–10: Tier 3 consultations (match → offer → consent-gated start →
+  transcript summary → 24h hold → Razorpay Route payout)
+- W11–12: LegalDesk Plus annual subscription, referrals + wallet ledger,
+  blog framework with Sonnet article generator, Playwright golden-path tests
 
 ## Stack
 - Next.js 14 App Router + TypeScript + Tailwind
@@ -69,6 +76,13 @@ Migrations live in `supabase/migrations/` and are applied in numbered order.
   index on pending offers; promotes the wallet jsonb to a proper
   append-only `wallet_ledger` table; links `payments` back to
   consultations.
+- `0006_subscriptions_referrals_blog.sql` — extends `subscriptions` for
+  Razorpay Subscriptions (razorpay_subscription_id, razorpay_plan_id,
+  paid_until, docs_used, consult_minutes_used); adds `referrals` (one
+  row per user, 6-char Crockford code, signup/paid credits in paise) and
+  `referral_claims` (idempotent ledger of who-was-referred-by-whom);
+  adds `blog_posts` for founder-reviewed SEO articles with
+  `blog_post_status` and a public-read RLS gate on `status='published'`.
 
 Apply via the Supabase CLI:
 
@@ -94,6 +108,9 @@ app/                 Next.js App Router
   api/consultations/    book, [id]/consent, [id]/start, [id]/finish, [id]/dispute
   api/lawyer/        apply, me, offers, offers/[id]/{accept,decline}
   api/admin/lawyers/ Founder-only queue + verify/suspend actions
+  api/subscriptions/ start (Razorpay Subscription), me (entitlements)
+  api/referrals/     me (code + counters), apply (claim a code)
+  api/wallet/balance Wallet balance in paise
   auth/login/        Magic-link request form
   auth/callback/     Supabase code-for-session exchange
   triage/            Email-gated triage chat
@@ -102,6 +119,10 @@ app/                 Next.js App Router
   lawyer/            Apply form + status dashboard (owner-only view)
   lawyer/offers/     Pending consult offers (accept / decline)
   admin/lawyers/     Founder-only verification queue UI
+  pricing/           Tiers + Plus subscription start
+  referrals/         Per-user code, share link, wallet balance
+  blog/              SEO article index
+  blog/[slug]/       Article page with Article + FAQPage JSON-LD
   privacy/, terms/
   opengraph-image/, robots.ts, sitemap.ts
 components/landing/  Hero, tiers, compliance banner
@@ -129,6 +150,12 @@ lib/consult/         Packs, booking schema, payout split, persistence,
 lib/match/           Match algorithm (specialization × language × state, top 3)
 lib/exotel/          Masked-number outbound dial client
 lib/hms/             100ms room creation + auth-token signing
+lib/subscriptions/   Plus persistence + entitlements helper
+lib/referrals/       Code generator, claim ledger, wallet credit helpers
+lib/blog/            Frontmatter loader + safe markdown renderer
+content/blog/        Founder-reviewed SEO articles (markdown)
+scripts/             generate-article.ts (Sonnet-driven content scaffolder)
+tests/e2e/           Playwright golden-path specs
 lib/users/           Service-role read of email/phone/name for delivery
 lib/notify/          Resend (email) + AiSensy (WhatsApp) senders
 lib/storage/         Storage bucket helpers (case-prep, documents)
@@ -233,6 +260,12 @@ or any external scheduler can hit the endpoint daily; pass
 `?dry_run=1` to inspect what would be released without issuing
 transfers.
 
+### 2j. Plus plan id cache (W11+ subscriptions, optional)
+After your first call to `/api/subscriptions/start` against real Razorpay
+keys, copy the returned `plan_id` and set it as `RAZORPAY_PLUS_PLAN_ID`.
+This skips the `POST /v1/plans` round-trip on subsequent subscription
+creations.
+
 ### 3. Vercel (hosting)
 1. Import the GitHub repo `Bksingh9/legal` at <https://vercel.com/new>.
 2. Framework preset: **Next.js**. Root directory: repo root.
@@ -280,7 +313,41 @@ curl -X POST https://legaldesk.ai/api/consultations/book \
   -d '{"pack":"p15","channel":"video","specialization":"property","language":"en","state":"Maharashtra"}'
 # Cron sweep payouts (after 24h hold)
 curl -X POST -H 'X-Cron-Secret: <CRON_SECRET>' https://legaldesk.ai/api/payouts/release
+# Start a Plus subscription
+curl -X POST --cookie 'sb-access-token=...' https://legaldesk.ai/api/subscriptions/start
+# Read referral code + wallet
+curl --cookie 'sb-access-token=...' https://legaldesk.ai/api/referrals/me
 ```
+
+## E2E tests
+
+Two golden-path Playwright specs live in `tests/e2e/`:
+
+- `triage-to-document.spec.ts` — runs the triage → Case Prep flow and the
+  legal-notice document form → preview flow.
+- `health.spec.ts` — surface canary across every public route plus
+  `/api/health`.
+
+Run locally:
+
+```bash
+npm run build
+npm run test:e2e:install   # one-time, downloads chromium
+npm run test:e2e
+```
+
+Both specs run on every push to `main` and every PR via the existing
+`.github/workflows/ci.yml` CI job.
+
+## Blog generation
+
+```bash
+npx tsx scripts/generate-article.ts "how to file an RTI"
+```
+
+Drops a draft `.md` into `content/blog/` with `status: "draft"`. Founder
+reviews and flips status to `"published"` before `/blog` surfaces it.
+The generator never names a lawyer / judge / case (BCI Rule 36).
 
 ## CI
 
@@ -298,5 +365,18 @@ curl -X POST -H 'X-Cron-Secret: <CRON_SECRET>' https://legaldesk.ai/api/payouts/
 - W3–4 Tier 1 AI triage — done (mock-tested, awaiting real Anthropic + Supabase keys)
 - W5–6 Tier 2 document automation + Razorpay — done
 - W7–8 lawyer onboarding + KYC — done
-- W9–10 Tier 3 consultation flow (Exotel + 100ms)  ← you are here
-- W11–12 subscriptions + referral + 50 SEO articles + bug bash
+- W9–10 Tier 3 consultation flow (Exotel + 100ms) — done
+- W11–12 subscriptions + referral + blog framework + Playwright tests — done
+
+The 90-day spec is fully scaffolded and mock-tested. Real keys turn each
+surface from mock to production:
+
+| Surface       | Required keys                                              |
+| ------------- | ---------------------------------------------------------- |
+| Triage        | `ANTHROPIC_API_KEY`, `SARVAM_API_KEY` (optional, Hindi STT)|
+| Documents     | `RAZORPAY_*`, `RESEND_*`, `AISENSY_API_KEY`                |
+| Lawyer onboarding | `RAZORPAY_*` (Route enabled)                           |
+| Consultations | `EXOTEL_*`, `HMS_*`, `CRON_SECRET`                         |
+| Plus          | `RAZORPAY_*` (Subscriptions enabled), `RAZORPAY_PLUS_PLAN_ID` cache |
+| Referrals     | (no extra keys — works against Supabase only)              |
+| Blog          | `ANTHROPIC_API_KEY` for the generator                      |
