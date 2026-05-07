@@ -4,9 +4,9 @@ AI-powered legal help for India — triage, document automation, and lawyer
 consultations. BCI Rule 36 compliant, DPDP Act 2023 aligned, India-resident data.
 
 The full product spec lives in [`SPEC.md`](./SPEC.md). This README covers the
-Week 1–8 build: landing + waitlist (W1–2), Tier 1 AI triage (W3–4), Tier 2
-document automation with Razorpay (W5–6), and lawyer onboarding + KYC + admin
-queue (W7–8).
+Week 1–10 build: landing + waitlist (W1–2), Tier 1 AI triage (W3–4), Tier 2
+document automation with Razorpay (W5–6), lawyer onboarding + KYC + admin
+queue (W7–8), and the Tier 3 consultation flow with Exotel + 100ms (W9–10).
 
 ## Stack
 - Next.js 14 App Router + TypeScript + Tailwind
@@ -62,6 +62,13 @@ Migrations live in `supabase/migrations/` and are applied in numbered order.
   anon_slug on existing rows; adds GIN indexes on specializations and
   languages for the W9–10 match algorithm; adds `lawyer_applications`
   audit-trail table with applicant-read RLS.
+- `0005_consultations.sql` — extends `consultations` for the full match →
+  offer → start → finish → 24h-hold → release lifecycle (pack enum,
+  recording-consent flags, payout fields, hms_room_id, exotel_call_sid);
+  creates `consultation_offers` with `offer_status` enum and partial
+  index on pending offers; promotes the wallet jsonb to a proper
+  append-only `wallet_ledger` table; links `payments` back to
+  consultations.
 
 Apply via the Supabase CLI:
 
@@ -81,13 +88,19 @@ app/                 Next.js App Router
   api/triage/        classify, prep, transcribe
   api/documents/     [sku]/preview (validate + render), POST /create-draft
   api/payments/      order, webhook (signature-verified)
-  api/lawyer/        apply (zod-validated, idempotent), me
+  api/payouts/release   Cron-callable, X-Cron-Secret gated; sweeps
+                        completed consults past 24h hold, issues
+                        Razorpay Route transfers
+  api/consultations/    book, [id]/consent, [id]/start, [id]/finish, [id]/dispute
+  api/lawyer/        apply, me, offers, offers/[id]/{accept,decline}
   api/admin/lawyers/ Founder-only queue + verify/suspend actions
   auth/login/        Magic-link request form
   auth/callback/     Supabase code-for-session exchange
   triage/            Email-gated triage chat
   documents/         Index + per-SKU guided form / preview / checkout
+  consult/           Tier 3 booking form (pack / channel / spec / lang / state)
   lawyer/            Apply form + status dashboard (owner-only view)
+  lawyer/offers/     Pending consult offers (accept / decline)
   admin/lawyers/     Founder-only verification queue UI
   privacy/, terms/
   opengraph-image/, robots.ts, sitemap.ts
@@ -111,6 +124,11 @@ lib/documents/       Document row CRUD
 lib/lawyer-reviews/  Queue insert for the +Rs 499 add-on
 lib/lawyers/         Lawyer types/schemas, persistence, anon-card firewall
 lib/admin/           requireAdmin role gate
+lib/consult/         Packs, booking schema, payout split, persistence,
+                     transcript summarization
+lib/match/           Match algorithm (specialization × language × state, top 3)
+lib/exotel/          Masked-number outbound dial client
+lib/hms/             100ms room creation + auth-token signing
 lib/users/           Service-role read of email/phone/name for delivery
 lib/notify/          Resend (email) + AiSensy (WhatsApp) senders
 lib/storage/         Storage bucket helpers (case-prep, documents)
@@ -190,6 +208,31 @@ the admin can retry from the queue. Razorpay enables Route on production
 keys after a separate KYC review on their side — request it before the
 W9–10 lawyer-payout flow goes live.
 
+### 2g. Exotel (W9+ masked-number calls)
+1. Create an Exotel account at <https://exotel.com/>.
+2. Subscribe to a virtual number (used as the masked CallerID).
+3. Settings → API: copy the SID, API key and API token. Save as
+   `EXOTEL_SID`, `EXOTEL_API_KEY`, `EXOTEL_API_TOKEN`. Save the
+   virtual number as `EXOTEL_VIRTUAL_NUMBER` in E.164 format.
+4. Without these, `/api/consultations/<id>/start` returns a deterministic
+   mock `exotel_mock_<hex>` SID for the call channel.
+
+### 2h. 100ms (W9+ video room)
+1. Create an account at <https://www.100ms.live/>.
+2. Apps → Add → Video Conferencing template. Copy the **Access Key**,
+   **Secret**, and **Template ID**. Save as `HMS_ACCESS_KEY`,
+   `HMS_SECRET`, `HMS_TEMPLATE_ID`.
+3. Without these, `/api/consultations/<id>/start` returns a deterministic
+   mock `room_mock_<hex>` plus an `auth_mock_…` token for the video channel.
+
+### 2i. Cron secret (W9+ payout release)
+Set `CRON_SECRET` to a long random string. The
+`/api/payouts/release` route requires this in the `X-Cron-Secret`
+header; without it the route returns 503. Vercel Cron, GitHub Actions,
+or any external scheduler can hit the endpoint daily; pass
+`?dry_run=1` to inspect what would be released without issuing
+transfers.
+
 ### 3. Vercel (hosting)
 1. Import the GitHub repo `Bksingh9/legal` at <https://vercel.com/new>.
 2. Framework preset: **Next.js**. Root directory: repo root.
@@ -230,6 +273,13 @@ curl -X POST https://legaldesk.ai/api/lawyer/apply \
   -H 'content-type: application/json' \
   --cookie 'sb-access-token=...' \
   -d '{"bar_council_id":"D/1234/2018","state":"Maharashtra","years_exp":7,"specializations":["civil","property"],"languages":["en","hi","mr"],"payout":{"legal_business_name":"...","contact_name":"...","contact_email":"x@y.com","contact_phone":"+919999999999","upi_vpa":"x@upi"}}'
+# Book a consult (Tier 3)
+curl -X POST https://legaldesk.ai/api/consultations/book \
+  -H 'content-type: application/json' \
+  --cookie 'sb-access-token=...' \
+  -d '{"pack":"p15","channel":"video","specialization":"property","language":"en","state":"Maharashtra"}'
+# Cron sweep payouts (after 24h hold)
+curl -X POST -H 'X-Cron-Secret: <CRON_SECRET>' https://legaldesk.ai/api/payouts/release
 ```
 
 ## CI
@@ -247,6 +297,6 @@ curl -X POST https://legaldesk.ai/api/lawyer/apply \
 - W1–2 scaffold + landing + waitlist  — done
 - W3–4 Tier 1 AI triage — done (mock-tested, awaiting real Anthropic + Supabase keys)
 - W5–6 Tier 2 document automation + Razorpay — done
-- W7–8 lawyer onboarding + KYC  ← you are here
-- W9–10 Tier 3 consultation flow (Exotel + 100ms)
+- W7–8 lawyer onboarding + KYC — done
+- W9–10 Tier 3 consultation flow (Exotel + 100ms)  ← you are here
 - W11–12 subscriptions + referral + 50 SEO articles + bug bash
