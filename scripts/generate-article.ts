@@ -1,14 +1,17 @@
 // CLI: generate a blog article frontmatter + body from a keyword.
 // Run with:  npx tsx scripts/generate-article.ts "how to file an RTI"
 //
-// Requires ANTHROPIC_API_KEY. Produces content/blog/<slug>.md with status
-// "draft"; the founder reviews and flips status to "published" before
-// /blog surfaces it.
+// Uses the LLM router (lib/llm/router.ts). The backend is selected by
+// LLM_BLOG (anthropic / openai / ollama / openrouter / sarvam / mock).
+// When LLM_BLOG is unset, the router falls through to whichever provider
+// has its API key configured, ending at the mock provider so the CLI
+// always produces output. Set LLM_BLOG=ollama for local generation
+// against a self-hosted Llama 3.1 — zero API spend.
 
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { generate, pickProvider } from "../lib/llm/router";
 
-const TRIAGE_MODEL = process.env.ANTHROPIC_TRIAGE_MODEL || "claude-sonnet-4-6";
 const SYSTEM = `You are LegalDesk AI's content writer. From a single intent
 keyword, produce a publishable explainer for non-lawyers in India.
 
@@ -35,45 +38,21 @@ Rules:
 async function main() {
   const keyword = process.argv.slice(2).join(" ").trim();
   if (!keyword) {
-    console.error("usage: generate-article.ts \"<intent keyword>\"");
+    console.error('usage: generate-article.ts "<intent keyword>"');
     process.exit(1);
   }
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.error("ANTHROPIC_API_KEY is required");
-    process.exit(2);
-  }
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "anthropic-version": "2023-06-01",
-      "x-api-key": apiKey
-    },
-    body: JSON.stringify({
-      model: TRIAGE_MODEL,
-      max_tokens: 4000,
-      system: [
-        { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }
-      ],
-      messages: [{ role: "user", content: `Intent keyword: ${keyword}` }]
-    })
+  const provider = pickProvider("blog.generate");
+  console.error(`[generate-article] provider=${provider.name}`);
+
+  const result = await generate({
+    workload: "blog.generate",
+    system: SYSTEM,
+    user: `Intent keyword: ${keyword}`,
+    max_tokens: 4000
   });
-  if (!res.ok) {
-    console.error("anthropic error:", res.status, await res.text());
-    process.exit(3);
-  }
-  const data = (await res.json()) as {
-    content: Array<{ type: string; text?: string }>;
-  };
-  const block = data.content.find((b) => b.type === "text");
-  if (!block?.text) {
-    console.error("empty response");
-    process.exit(4);
-  }
-  const json = stripFences(block.text);
-  const parsed = JSON.parse(json) as {
+
+  let parsed: {
     slug: string;
     title: string;
     description: string;
@@ -81,6 +60,13 @@ async function main() {
     faqs: { question: string; answer: string }[];
     body_md: string;
   };
+  try {
+    parsed = JSON.parse(stripFences(result.text));
+  } catch (err) {
+    console.error("could not parse LLM output as JSON:", err);
+    console.error("raw:", result.text.slice(0, 400));
+    process.exit(3);
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const frontmatter = JSON.stringify(
