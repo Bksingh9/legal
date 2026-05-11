@@ -132,7 +132,9 @@ components/lawyer/   LawyerApplyForm
 components/admin/    LawyerQueue (tabbed verification dashboard)
 components/auth/     LoginForm
 components/ui/       Button, Input
-lib/anthropic/       Client (real + deterministic mock), prompts, types
+lib/llm/             Provider abstraction: types, router, six backends
+                     (anthropic / openai / ollama / openrouter / sarvam / mock)
+lib/anthropic/       Triage prompts + parsers (back-compat surface; uses lib/llm internally)
 lib/triage/          Service-role helpers for the queries table
 lib/skus/            SKU registry + zod input schemas (5 launch SKUs)
 lib/templates/       Deterministic structured-doc renderers per SKU
@@ -176,12 +178,62 @@ These steps need credentials only you can create. Once done, share the keys
 3. SQL Editor → paste `supabase/migrations/0001_initial_schema.sql` → Run.
 4. Auth → Providers: enable **Email (magic link)** and **Phone (MSG91/Twilio)**.
 
-### 2. Anthropic
-1. Create a workspace at <https://console.anthropic.com>.
-2. API Keys → create a key scoped to this project. Save as `ANTHROPIC_API_KEY`.
-3. Defaults: `ANTHROPIC_TRIAGE_MODEL=claude-sonnet-4-6` and
-   `ANTHROPIC_CLASSIFY_MODEL=claude-haiku-4-5-20251001`. Override only if you
-   know what you're doing.
+### 2. LLM provider (Anthropic is one of five)
+
+The LLM layer is abstracted behind `lib/llm/router.ts`. Six backends ship:
+`anthropic`, `openai`, `ollama`, `openrouter`, `sarvam`, `mock`. Four
+workloads each pick a backend independently via env:
+
+- `LLM_CLASSIFY` (Haiku-class — triage classification)
+- `LLM_DRAFT` (Sonnet-class — Case Prep, document narrative fills)
+- `LLM_SUMMARIZE` (Sonnet-class — consultation transcript summary)
+- `LLM_BLOG` (Sonnet-class — SEO article generator)
+
+Leave the four selectors blank and the router falls through the available
+providers in order `anthropic → openai → openrouter → sarvam → ollama →
+mock`, so `ANTHROPIC_API_KEY` alone is enough to light up the existing
+deploy.
+
+**Anthropic (default)**: console.anthropic.com → API Keys → create. Save
+as `ANTHROPIC_API_KEY`. Defaults `ANTHROPIC_TRIAGE_MODEL=claude-sonnet-4-6`,
+`ANTHROPIC_CLASSIFY_MODEL=claude-haiku-4-5-20251001`.
+
+**OpenAI**: platform.openai.com → API keys → save as `OPENAI_API_KEY`.
+For Azure India residency, additionally set `OPENAI_BASE_URL` to your
+Azure deployment URL and set `OPENAI_DRAFT_MODEL` to the deployment name.
+
+**Ollama (zero API spend, local)**:
+
+```bash
+brew install ollama
+ollama serve &
+ollama pull llama3.1:8b
+export OLLAMA_BASE_URL=http://localhost:11434
+export LLM_CLASSIFY=ollama LLM_DRAFT=ollama
+```
+
+`/triage` now runs entirely against your laptop GPU.
+
+**OpenRouter (unified gateway)**: openrouter.ai → keys → save as
+`OPENROUTER_API_KEY`. Set `OPENROUTER_DRAFT_MODEL` to any supported model id
+(e.g. `mistralai/mistral-large-2411`, `meta-llama/llama-3.1-70b-instruct`).
+
+**Sarvam (Indic-first)**: sarvam.ai → save as `SARVAM_API_KEY`. The same
+key powers Indic STT in `/api/triage/transcribe`.
+
+**Hybrid example** (cheap classify, quality draft):
+
+```
+LLM_CLASSIFY=ollama
+LLM_DRAFT=anthropic
+LLM_SUMMARIZE=openai
+LLM_BLOG=openrouter
+OPENROUTER_DRAFT_MODEL=anthropic/claude-sonnet-4.5
+```
+
+`/api/health` returns a `llm_routing` field showing which backend each
+workload resolved to — quick check that your env config did what you
+expected.
 
 ### 2a. Sarvam.ai (optional, Indic STT)
 1. Get a key at <https://www.sarvam.ai/>.
