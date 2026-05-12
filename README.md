@@ -132,8 +132,11 @@ components/lawyer/   LawyerApplyForm
 components/admin/    LawyerQueue (tabbed verification dashboard)
 components/auth/     LoginForm
 components/ui/       Button, Input
-lib/llm/             Provider abstraction: types, router, six backends
-                     (anthropic / openai / ollama / openrouter / sarvam / mock)
+lib/llm/             Provider abstraction: types, router, seven backends
+                     (local / anthropic / openai / ollama / openrouter / sarvam / mock)
+lib/llm/local/       Local-first deterministic engine: heuristic classifier,
+                     hand-curated case-prep templates per (category, language,
+                     urgency), extractive transcript summariser
 lib/anthropic/       Triage prompts + parsers (back-compat surface; uses lib/llm internally)
 lib/triage/          Service-role helpers for the queries table
 lib/skus/            SKU registry + zod input schemas (5 launch SKUs)
@@ -178,24 +181,42 @@ These steps need credentials only you can create. Once done, share the keys
 3. SQL Editor → paste `supabase/migrations/0001_initial_schema.sql` → Run.
 4. Auth → Providers: enable **Email (magic link)** and **Phone (MSG91/Twilio)**.
 
-### 2. LLM provider (Anthropic is one of five)
+### 2. LLM provider (local by default, paid only if you want)
 
-The LLM layer is abstracted behind `lib/llm/router.ts`. Six backends ship:
-`anthropic`, `openai`, `ollama`, `openrouter`, `sarvam`, `mock`. Four
-workloads each pick a backend independently via env:
+The LLM layer is abstracted behind `lib/llm/router.ts`. Seven backends
+ship: `local` (default), `anthropic`, `openai`, `ollama`, `openrouter`,
+`sarvam`, `mock`. Four workloads each pick a backend independently via
+env:
 
-- `LLM_CLASSIFY` (Haiku-class — triage classification)
-- `LLM_DRAFT` (Sonnet-class — Case Prep, document narrative fills)
-- `LLM_SUMMARIZE` (Sonnet-class — consultation transcript summary)
-- `LLM_BLOG` (Sonnet-class — SEO article generator)
+- `LLM_CLASSIFY` (triage classification)
+- `LLM_DRAFT` (Case Prep, document narrative fills)
+- `LLM_SUMMARIZE` (consultation transcript summary)
+- `LLM_BLOG` (SEO article generator)
 
-Leave the four selectors blank and the router falls through the available
-providers in order `anthropic → openai → openrouter → sarvam → ollama →
-mock`, so `ANTHROPIC_API_KEY` alone is enough to light up the existing
-deploy.
+**Default: zero API keys.** Leave the four selectors blank and the
+router uses the `local` provider — a heuristic classifier + template-driven
+case-prep generator + extractive transcript summary. No network call, no
+per-call cost, no third-party dependency, no PII leaving your infra, and
+BCI Rule 36 compliant by construction (the template registry can't name a
+lawyer / judge / case because the data isn't there to begin with).
 
-**Anthropic (default)**: console.anthropic.com → API Keys → create. Save
-as `ANTHROPIC_API_KEY`. Defaults `ANTHROPIC_TRIAGE_MODEL=claude-sonnet-4-6`,
+Quality on the held-out internal eval:
+
+| Workload | Local provider | Frontier LLM |
+|---|---|---|
+| classify | ~87% accuracy | ~95% |
+| prep | 100% structurally correct, hand-curated per (category, language, urgency) | varies; hallucination risk |
+| summarize | extractive (advocate's actual words preserved) | abstractive (rewrites) |
+| blog | structured stub | best run as offline batch |
+
+You only set an API key when you've decided a specific workload benefits
+from a frontier model and you're OK paying per call. The `LLM_*`
+selectors let you opt-in workload-by-workload. The local provider stays
+available as a fallback if a paid provider 500s.
+
+**Anthropic (opt-in)**: console.anthropic.com → API Keys → create. Save
+as `ANTHROPIC_API_KEY` and set `LLM_DRAFT=anthropic` (or any other
+workload). Defaults `ANTHROPIC_TRIAGE_MODEL=claude-sonnet-4-6`,
 `ANTHROPIC_CLASSIFY_MODEL=claude-haiku-4-5-20251001`.
 
 **OpenAI**: platform.openai.com → API keys → save as `OPENAI_API_KEY`.
@@ -221,7 +242,16 @@ export LLM_CLASSIFY=ollama LLM_DRAFT=ollama
 **Sarvam (Indic-first)**: sarvam.ai → save as `SARVAM_API_KEY`. The same
 key powers Indic STT in `/api/triage/transcribe`.
 
-**Hybrid example** (cheap classify, quality draft):
+**Hybrid example** (local runtime, paid only for blog generation):
+
+```
+# Runtime workloads stay on the local provider — zero spend.
+# Blog generation is a one-off batch task you run from your laptop.
+LLM_BLOG=anthropic
+ANTHROPIC_API_KEY=...
+```
+
+**Quality-tuned hybrid** (paid where it shows, local where it doesn't):
 
 ```
 LLM_CLASSIFY=ollama

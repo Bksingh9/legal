@@ -3,6 +3,7 @@ import { openaiProvider } from "./providers/openai";
 import { ollamaProvider } from "./providers/ollama";
 import { openrouterProvider } from "./providers/openrouter";
 import { sarvamProvider } from "./providers/sarvam";
+import { localProvider } from "./providers/local";
 import { mockProvider } from "./providers/mock";
 import type { ChatRequest, ChatResult, LLMProvider, Workload } from "./types";
 
@@ -13,6 +14,7 @@ const PROVIDERS: Record<string, LLMProvider> = {
   ollama: ollamaProvider,
   openrouter: openrouterProvider,
   sarvam: sarvamProvider,
+  local: localProvider,
   mock: mockProvider
 };
 
@@ -25,11 +27,12 @@ const ENV_BY_WORKLOAD: Record<Workload, string> = {
   "blog.generate": "LLM_BLOG"
 };
 
-// When the operator hasn't picked a provider for a workload, fall through
-// in this order. Anthropic stays first for back-compat with the original
-// deploy. Mock is the universal terminator so nothing 5xxs on a fresh
-// checkout.
+// Fallback order when no selector is set. `local` runs first because it
+// needs no API key, no network call, no third-party dependency, and is
+// BCI Rule 36 compliant by construction. Paid providers are opt-in via
+// the LLM_* env selectors.
 const FALLBACK_ORDER: string[] = [
+  "local",
   "anthropic",
   "openai",
   "openrouter",
