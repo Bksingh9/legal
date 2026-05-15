@@ -3,8 +3,9 @@
 AI-powered legal help for India — triage, document automation, and lawyer
 consultations. BCI Rule 36 compliant, DPDP Act 2023 aligned, India-resident data.
 
-The full product spec lives in [`SPEC.md`](./SPEC.md). This README covers the
-full Week 1–12 build:
+The full product spec lives in [`SPEC.md`](./SPEC.md). The original end-to-end
+build prompt handed off to the continuing agent is preserved in
+[`HANDOFF.md`](./HANDOFF.md). This README covers the full Week 1–12 build:
 
 - W1–2: landing + waitlist
 - W3–4: Tier 1 AI triage with Hindi + voice + signed-PDF Case Prep
