@@ -19,9 +19,32 @@ build prompt handed off to the continuing agent is preserved in
 ## Stack
 - Next.js 14 App Router + TypeScript + Tailwind
 - Supabase (Postgres + Auth + Storage + RLS) on `ap-south-1`
-- Anthropic Claude API (Sonnet 4.6 default, Haiku 4.5 for cheap classification)
+- Pluggable LLM layer (`lib/llm/`) — local-first; Anthropic / OpenAI / OpenRouter /
+  Sarvam / Ollama as optional paid backends
 - Razorpay + Stripe (NRI), Exotel + 100ms, AiSensy/Gupshup, Resend, PostHog, Sentry
 - Vercel + GitHub + Cloudflare
+
+## Tier-0..4 contract (no-key first, paid services are amplifiers)
+
+Every flow has a useful Tier-0 path. Paid keys upgrade quality and reach;
+they do not gate capability. CI and the local dev experience both run on
+Tier 0, so the contract is enforced at build time.
+
+| Tier | Adds | What it unlocks |
+|------|------|-----------------|
+| **0** | nothing — Supabase only | Auth, DB, RLS, waitlist, landing, /triage with local case-prep templates, /documents with full preview, browser-side voice (Chrome/Edge), in-app inbox |
+| **1** | `ANTHROPIC_API_KEY` (or any one of OpenAI/OpenRouter/Sarvam/Ollama) | Real Claude-quality triage classification and Case Prep. Same endpoints, same UX — only the output quality changes. |
+| **2** | `RAZORPAY_KEY_ID` + `_SECRET` + `_WEBHOOK_SECRET` | Real payments for Tier-2 documents and Tier-3 consultations. Without these, /api/payments/order returns mock orders that walk the full success path. |
+| **3** | `RESEND_API_KEY` (+ verified domain), `AISENSY_API_KEY` | Email + WhatsApp delivery of generated documents and case-prep PDFs. Without these, deliveries log to console; the user still sees the in-app inbox. |
+| **4** | `EXOTEL_*` + `HMS_*` | Real masked-number calls and HD video consultations. Without these, /consult bookings still get matched and scheduled; the call channel falls back to async chat. |
+
+Architectural rules to preserve this property:
+1. Every external SDK lives behind a `lib/<vendor>/` module that exposes an
+   `available()` check. Callers never read `process.env` directly.
+2. Every paid path has a Tier-0 sibling that exercises the same DB writes
+   and the same UI states.
+3. New features start by listing their Tier-0 path in the PR description.
+   "Only works with key X" is not acceptable for a v1 ship.
 
 ## Local development
 
@@ -36,11 +59,14 @@ npm run dev
 All routes degrade gracefully when their dependencies are missing:
 
 - `/api/waitlist` accepts the signup but does not persist when Supabase is unset.
-- `/api/triage/classify` and `/api/triage/prep` use deterministic mocks when
-  `ANTHROPIC_API_KEY` is unset, so the entire `/triage` UI works on a fresh
-  checkout without spending any tokens.
-- `/api/triage/transcribe` returns a stub transcript when `SARVAM_API_KEY`
-  is unset.
+- `/api/triage/classify` and `/api/triage/prep` route through `lib/llm/` and
+  fall back to the deterministic `local` provider (curated Indian-law
+  templates per category + urgency + language) when no paid LLM key is set.
+  The `/triage` UI is identical at every tier.
+- `/api/triage/transcribe` returns `501 {mode: "mock"}` when no paid STT is
+  configured. The browser's Web Speech API is the Tier-0 STT path — see
+  `components/triage/voice-recorder.tsx` — so Chrome/Edge users get real
+  Hindi+English transcription with zero keys.
 - `/api/payments/order` calls a deterministic Razorpay mock that returns
   `order_mock_<hex>` ids when `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` are
   unset; the webhook handler accepts the literal `mock` signature so the

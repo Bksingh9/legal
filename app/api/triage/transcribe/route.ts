@@ -27,12 +27,15 @@ export async function POST(req: Request) {
 
   const sarvamKey = process.env.SARVAM_API_KEY;
   if (!sarvamKey) {
-    return NextResponse.json({
-      ok: true,
-      provider: "mock",
-      language: "en",
-      text: "[transcription disabled in mock mode — set SARVAM_API_KEY]"
-    });
+    // No paid STT configured. The browser-side Web Speech API path in
+    // components/triage/voice-recorder.tsx covers Tier-0 cleanly; this
+    // route is the explicit upgrade path. Return 501 so the client knows
+    // to surface the "use Chrome/Edge or type" hint instead of pretending
+    // it transcribed.
+    return NextResponse.json(
+      { error: "Server STT not configured.", mode: "mock" },
+      { status: 501 }
+    );
   }
 
   const upstream = new FormData();
