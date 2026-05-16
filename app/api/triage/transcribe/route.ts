@@ -1,21 +1,17 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/triage/persistence";
 
 export const runtime = "nodejs";
 
-// Sarvam.ai for Indic STT. When SARVAM_API_KEY is unset we return a
-// deterministic stub so the rest of the triage pipeline can still be
-// exercised end-to-end against mocks.
+// Sarvam.ai for Indic STT. When SARVAM_API_KEY is unset the route
+// returns 501 so the client knows server STT isn't available — at
+// Tier-0 the browser-side Web Speech API in
+// components/triage/voice-recorder.tsx covers the path. Public route:
+// no auth gate so the triage funnel stays open.
 const SARVAM_ENDPOINT = "https://api.sarvam.ai/speech-to-text";
 
 const MAX_BYTES = 12 * 1024 * 1024; // 12 MB cap per upload
 
 export async function POST(req: Request) {
-  const userId = await getCurrentUserId();
-  if (!userId && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Sign in to triage." }, { status: 401 });
-  }
-
   const form = await req.formData().catch(() => null);
   const file = form?.get("audio");
   if (!(file instanceof Blob)) {
