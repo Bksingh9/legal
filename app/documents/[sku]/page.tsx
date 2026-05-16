@@ -64,6 +64,8 @@ export default async function DocumentSkuPage({
         }}
         spec={spec}
         razorpayConfigured={Boolean(process.env.RAZORPAY_KEY_ID)}
+        upiConfigured={Boolean(process.env.UPI_VPA && process.env.UPI_MERCHANT_NAME)}
+        siteUrl={process.env.NEXT_PUBLIC_SITE_URL}
       />
     </main>
   );

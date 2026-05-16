@@ -7,6 +7,8 @@ import { Disclaimer } from "@/components/triage/disclaimer";
 import { DocumentPreview } from "@/components/documents/document-preview";
 import { CheckoutButton } from "@/components/documents/checkout-button";
 import { FreeDownload } from "@/components/documents/free-download";
+import { UpiCheckout } from "@/components/payments/upi-checkout";
+import { WhatsAppShare } from "@/components/share/whatsapp-share";
 import { setDeep, getDeep } from "@/lib/forms/types";
 import type { FormSpec, FieldSpec } from "@/lib/forms/types";
 
@@ -30,9 +32,17 @@ interface Props {
   sku: SkuSummary;
   spec: FormSpec;
   razorpayConfigured?: boolean;
+  upiConfigured?: boolean;
+  siteUrl?: string;
 }
 
-export function DocumentForm({ sku, spec, razorpayConfigured = false }: Props) {
+export function DocumentForm({
+  sku,
+  spec,
+  razorpayConfigured = false,
+  upiConfigured = false,
+  siteUrl
+}: Props) {
   const [values, setValues] = useState<Record<string, unknown>>(() =>
     seedDefaults(spec)
   );
@@ -166,10 +176,13 @@ export function DocumentForm({ sku, spec, razorpayConfigured = false }: Props) {
               </p>
             </div>
             <FreeDownload skuId={sku.id} values={values} />
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Button type="button" variant="ghost" onClick={() => setStage({ kind: "edit" })}>
                 Back to edit
               </Button>
+              <WhatsAppShare
+                text={`I just generated my ${sku.title} free on LegalDesk AI. You can too: ${siteUrl ?? "https://legaldesk-ai.vercel.app"}`}
+              />
               {razorpayConfigured ? (
                 <Button type="button" onClick={commitDraft} disabled={stage.kind !== "preview"}>
                   Pay for delivery ({priceLabel(sku.price_paise, addon)})
@@ -183,6 +196,23 @@ export function DocumentForm({ sku, spec, razorpayConfigured = false }: Props) {
               </p>
             ) : null}
           </div>
+
+          {!razorpayConfigured && upiConfigured && sku.allow_addon_lawyer_review ? (
+            <div className="rounded-md border border-ink-100 p-4">
+              <p className="text-sm font-medium">Add lawyer review (₹499)</p>
+              <p className="mt-1 text-xs text-neutral-600">
+                A verified advocate reviews your draft and replies within 24
+                hours. Pay via UPI — no card needed.
+              </p>
+              <div className="mt-3">
+                <UpiCheckout
+                  documentId={`addon-${sku.id}`}
+                  idempotencyKey={`upi-addon-${sku.id}-${Date.now()}`}
+                  amountLabel={priceLabel(0, true)}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
