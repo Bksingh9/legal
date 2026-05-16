@@ -71,7 +71,7 @@ export default async function PricingPage() {
 
       <p className="text-xs text-neutral-500">
         All prices in Indian Rupees, inclusive of applicable taxes. We bill via
-        Razorpay. NRI customers can pay in USD via Stripe (coming soon).
+        Razorpay. NRI customers can pay in USD via Stripe.
       </p>
     </main>
   );

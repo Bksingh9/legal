@@ -1,4 +1,4 @@
-import { WaitlistForm } from "@/components/waitlist-form";
+import Link from "next/link";
 
 export function Hero() {
   return (
@@ -15,11 +15,22 @@ export function Hero() {
           a court-ready document, or a 15-minute consultation with a verified advocate.
           Built for tenants, salaried Indians, SMBs, and NRIs.
         </p>
-        <div className="mt-8 max-w-md">
-          <WaitlistForm />
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            href="/triage"
+            className="inline-flex h-12 items-center justify-center rounded-md bg-brand-600 px-6 text-base font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          >
+            Start free triage
+          </Link>
+          <Link
+            href="/documents"
+            className="inline-flex h-12 items-center justify-center rounded-md border border-ink-200 bg-white px-6 text-base font-medium text-ink-900 transition-colors hover:bg-ink-50"
+          >
+            Browse documents
+          </Link>
         </div>
-        <p className="mt-3 text-xs text-ink-400">
-          Free triage on launch. No spam. We&apos;ll only email you when LegalDesk goes live.
+        <p className="mt-4 text-sm text-ink-400">
+          Free to start. Sign in with your email — no app to download, no card on file.
         </p>
       </div>
     </section>
