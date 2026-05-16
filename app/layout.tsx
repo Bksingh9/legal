@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { HeaderBell } from "@/components/notifications/header-bell";
 
 export const metadata: Metadata = {
   title: "LegalDesk AI — AI-powered legal help for India",
@@ -26,7 +27,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-dvh font-sans">{children}</body>
+      <body className="min-h-dvh font-sans">
+        <HeaderBell />
+        {children}
+      </body>
     </html>
   );
 }

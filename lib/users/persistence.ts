@@ -20,3 +20,16 @@ export async function getUserContact(userId: string): Promise<UserContact | null
   }
   return (data as UserContact) ?? null;
 }
+
+// Looks up the contact for the auth user behind a given lawyer row.
+export async function getLawyerContact(lawyerId: string): Promise<UserContact | null> {
+  const supa = getSupabaseServiceClient();
+  if (!supa) return null;
+  const { data, error } = await supa
+    .from("lawyers")
+    .select("user_id")
+    .eq("id", lawyerId)
+    .maybeSingle();
+  if (error || !data?.user_id) return null;
+  return getUserContact(data.user_id as string);
+}

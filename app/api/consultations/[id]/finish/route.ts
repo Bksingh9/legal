@@ -9,7 +9,9 @@ import {
 import { computePayoutSplit } from "@/lib/consult/packs";
 import { summarizeTranscript } from "@/lib/consult/summarize";
 import { sendEmail } from "@/lib/notify/email";
+import { notifyUser } from "@/lib/notify/inbox";
 import { getUserContact } from "@/lib/users/persistence";
+import { getSupabaseServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -86,6 +88,25 @@ export async function POST(
     });
   }
 
+  // In-app notification for both parties — durable and live via Realtime.
+  await notifyUser({
+    userId: c.user_id,
+    kind: "consultation.finished",
+    title: "Consultation completed",
+    body: summary ? "Summary is in your inbox." : "Thanks for using LegalDesk.",
+    link: `/account`
+  });
+  const lawyerUserId = c.lawyer_id ? await lookupLawyerUserId(c.lawyer_id) : null;
+  if (lawyerUserId) {
+    await notifyUser({
+      userId: lawyerUserId,
+      kind: "consultation.finished",
+      title: "Consultation completed",
+      body: `Payout of Rs ${(split.lawyer_payout_paise / 100).toFixed(0)} held for 24h.`,
+      link: `/lawyer`
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     consultation_id: c.id,
@@ -93,6 +114,17 @@ export async function POST(
     payout_lawyer_paise: split.lawyer_payout_paise,
     summary
   });
+}
+
+async function lookupLawyerUserId(lawyerId: string): Promise<string | null> {
+  const supa = getSupabaseServiceClient();
+  if (!supa) return null;
+  const { data } = await supa
+    .from("lawyers")
+    .select("user_id")
+    .eq("id", lawyerId)
+    .maybeSingle();
+  return (data?.user_id as string | undefined) ?? null;
 }
 
 function escapeHtml(s: string): string {

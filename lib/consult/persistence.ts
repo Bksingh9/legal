@@ -1,4 +1,5 @@
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import { notifyUser, notifyMany } from "@/lib/notify/inbox";
 import type { BookConsultInputType, PackId } from "./packs";
 
 export type ConsultStatus =
@@ -29,6 +30,7 @@ export interface ConsultationRow {
   recording_consent_lawyer: boolean | null;
   hms_room_id: string | null;
   exotel_call_sid: string | null;
+  jitsi_room_url: string | null;
   recording_url: string | null;
   transcript_url: string | null;
   summary: string | null;
@@ -101,6 +103,24 @@ export async function attachOffers(args: {
     .from("consultations")
     .update({ status: "matched", updated_at: new Date().toISOString() })
     .eq("id", args.consultationId);
+
+  // Notify each matched lawyer (live: shows in their /lawyer/offers
+  // page within seconds via the supabase_realtime publication).
+  const { data: lawyerRows } = await supa
+    .from("lawyers")
+    .select("user_id")
+    .in("id", args.lawyerIds);
+  const lawyerUserIds = (lawyerRows ?? [])
+    .map((r) => r.user_id as string)
+    .filter(Boolean);
+  if (lawyerUserIds.length > 0) {
+    await notifyMany(lawyerUserIds, {
+      kind: "offer.new",
+      title: "New consultation offer",
+      body: "A client wants to talk. First to accept wins.",
+      link: "/lawyer/offers"
+    });
+  }
   return data as OfferRow[];
 }
 
@@ -222,6 +242,15 @@ export async function acceptOffer(args: {
     return null;
   }
 
+  // Notify the client that the consultation is scheduled.
+  await notifyUser({
+    userId: (updatedConsult as ConsultationRow).user_id,
+    kind: "consultation.scheduled",
+    title: "Your consultation is scheduled",
+    body: "A verified advocate has accepted your booking. Open it to set up the call.",
+    link: `/consultations/${(updatedConsult as ConsultationRow).id}`
+  });
+
   return {
     consultation: updatedConsult as ConsultationRow,
     offer: accepted as OfferRow
@@ -273,7 +302,11 @@ export async function setRecordingConsent(args: {
 
 export async function markStarted(args: {
   consultationId: string;
-  channelMeta: { hms_room_id?: string; exotel_call_sid?: string };
+  channelMeta: {
+    hms_room_id?: string;
+    exotel_call_sid?: string;
+    jitsi_room_url?: string;
+  };
 }): Promise<void> {
   const supa = getSupabaseServiceClient();
   if (!supa) return;
@@ -285,7 +318,8 @@ export async function markStarted(args: {
       started_at: now,
       updated_at: now,
       hms_room_id: args.channelMeta.hms_room_id ?? null,
-      exotel_call_sid: args.channelMeta.exotel_call_sid ?? null
+      exotel_call_sid: args.channelMeta.exotel_call_sid ?? null,
+      jitsi_room_url: args.channelMeta.jitsi_room_url ?? null
     })
     .eq("id", args.consultationId);
 }

@@ -49,6 +49,11 @@ export default defineConfig({
       }
     },
     {
+      name: "realtime",
+      testMatch: /production-realtime\.spec\.ts$/,
+      use: { ...devices["Desktop Chrome"] }
+    },
+    {
       name: "teardown",
       testMatch: /_setup\/auth\.teardown\.ts$/,
       dependencies: ["authed"]

@@ -5,9 +5,12 @@ import {
   markStarted,
   getLawyerByUserId
 } from "@/lib/consult/persistence";
-import { connectMaskedCall } from "@/lib/exotel/client";
-import { createRoom, signRoomAuthToken } from "@/lib/hms/client";
-import { getUserContact } from "@/lib/users/persistence";
+import { connectMaskedCall, EXOTEL_ENABLED } from "@/lib/exotel/client";
+import { createRoom, signRoomAuthToken, HMS_ENABLED } from "@/lib/hms/client";
+import { getUserContact, getLawyerContact } from "@/lib/users/persistence";
+import { roomUrlFor } from "@/lib/jitsi/room";
+import { notifyUser } from "@/lib/notify/inbox";
+import { getSupabaseServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -24,18 +27,13 @@ export async function POST(
       ok: true,
       mock: true,
       channel: "video",
-      hms_room_id: "room_mock",
-      hms_auth_token: "auth_mock_room_mock_host"
+      jitsi_room_url: roomUrlFor("mock")
     });
   }
 
   const c = await getConsultationById(params.id);
   if (!c) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  // Either party (user or assigned lawyer) can trigger start, but only
-  // after both consent flags are set. Either being false short-circuits
-  // recording but does NOT block the call itself - the call proceeds
-  // un-recorded per spec §1 ("If either declines, record nothing.").
   let who: "user" | "lawyer" | null = null;
   if (c.user_id === userId) who = "user";
   else {
@@ -53,41 +51,92 @@ export async function POST(
   const recording =
     c.recording_consent_user === true && c.recording_consent_lawyer === true;
 
-  if (c.type === "video") {
-    const room = await createRoom({
-      name: `consult-${c.id}`,
-      description: `LegalDesk consult ${c.id}`,
-      recording
+  // Notify the other party that the consultation is starting now.
+  const otherPartyUserId = who === "user" ? await lawyerUserIdFor(c.lawyer_id) : c.user_id;
+  if (otherPartyUserId) {
+    await notifyUser({
+      userId: otherPartyUserId,
+      kind: "consultation.starting",
+      title: "Your consultation is starting",
+      body: "The other party just opened the call. Join now.",
+      link: `/consultations/${c.id}`
     });
+  }
+
+  // Video channel: prefer HMS when keys are wired, else Jitsi public meet.
+  if (c.type === "video") {
+    if (HMS_ENABLED) {
+      const room = await createRoom({
+        name: `consult-${c.id}`,
+        description: `LegalDesk consult ${c.id}`,
+        recording
+      });
+      await markStarted({
+        consultationId: c.id,
+        channelMeta: { hms_room_id: room.room_id }
+      });
+      const role = who === "lawyer" ? "host" : "guest";
+      const token = signRoomAuthToken({
+        user_id: userId,
+        room_id: room.room_id,
+        role
+      });
+      return NextResponse.json({
+        ok: true,
+        channel: "video",
+        provider: "hms",
+        recording,
+        hms_room_id: room.room_id,
+        hms_auth_token: token,
+        role
+      });
+    }
+
+    // Tier-0 fallback: Jitsi public meet. Deterministic room URL per
+    // consultation; both parties open the same URL and meet.
+    const jitsiUrl = roomUrlFor(c.id);
     await markStarted({
       consultationId: c.id,
-      channelMeta: { hms_room_id: room.room_id }
-    });
-    const role = who === "lawyer" ? "host" : "guest";
-    const token = signRoomAuthToken({
-      user_id: userId,
-      room_id: room.room_id,
-      role
+      channelMeta: { jitsi_room_url: jitsiUrl }
     });
     return NextResponse.json({
       ok: true,
       channel: "video",
+      provider: "jitsi",
       recording,
-      hms_room_id: room.room_id,
-      hms_auth_token: token,
-      role
+      jitsi_room_url: jitsiUrl
     });
   }
 
-  // call channel — Exotel masked outbound dial
+  // Call channel: real Exotel masked dial when keys are wired, else
+  // Tier-0 falls back to Jitsi audio (same room URL — user joins with
+  // camera off). This preserves the "no telephony key needed" promise.
+  if (!EXOTEL_ENABLED) {
+    const jitsiUrl = roomUrlFor(c.id);
+    await markStarted({
+      consultationId: c.id,
+      channelMeta: { jitsi_room_url: jitsiUrl }
+    });
+    return NextResponse.json({
+      ok: true,
+      channel: "call",
+      provider: "jitsi",
+      recording,
+      jitsi_room_url: jitsiUrl
+    });
+  }
+
   const userContact = await getUserContact(c.user_id);
-  // For mock mode without a lawyer phone lookup wired, we dial a placeholder.
-  // Production: pull lawyer phone from users table joined via lawyers.user_id.
-  const lawyerPhone = "+910000000000";
-  const userPhone = userContact?.phone ?? "+910000000000";
+  const lawyerContact = c.lawyer_id ? await getLawyerContact(c.lawyer_id) : null;
+  if (!userContact?.phone || !lawyerContact?.phone) {
+    return NextResponse.json(
+      { error: "Phone numbers missing for masked call. Switch to video to continue." },
+      { status: 409 }
+    );
+  }
   const call = await connectMaskedCall({
-    from_phone: userPhone,
-    to_phone: lawyerPhone,
+    from_phone: userContact.phone,
+    to_phone: lawyerContact.phone,
     record: recording
   });
   await markStarted({
@@ -97,8 +146,21 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     channel: "call",
+    provider: "exotel",
     recording,
     exotel_call_sid: call.call_sid,
     status: call.status
   });
+}
+
+async function lawyerUserIdFor(lawyerId: string | null): Promise<string | null> {
+  if (!lawyerId) return null;
+  const supa = getSupabaseServiceClient();
+  if (!supa) return null;
+  const { data } = await supa
+    .from("lawyers")
+    .select("user_id")
+    .eq("id", lawyerId)
+    .maybeSingle();
+  return (data?.user_id as string | undefined) ?? null;
 }

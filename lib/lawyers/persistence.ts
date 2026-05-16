@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import { notifyUser, notifyMany, getAdminUserIds } from "@/lib/notify/inbox";
 import type { LawyerApplyInputType, LawyerSelfView } from "./types";
 
 export interface LawyerRow {
@@ -114,6 +115,19 @@ export async function upsertLawyerApplication(args: {
     return null;
   }
 
+  // Notify every admin live that a new application landed in the queue.
+  const adminUserIds = await getAdminUserIds();
+  if (adminUserIds.length > 0) {
+    await notifyMany(adminUserIds, {
+      kind: "lawyer.application.new",
+      title: existing
+        ? "Lawyer application updated"
+        : "New lawyer application",
+      body: `${input.bar_council_id} · ${input.state} · ${input.years_exp}y`,
+      link: "/admin/lawyers"
+    });
+  }
+
   return { lawyer: lawyerRow, application: appRow as ApplicationRow };
 }
 
@@ -192,6 +206,16 @@ export async function verifyLawyer(args: {
     .eq("lawyer_id", args.lawyerId)
     .eq("status", "submitted");
 
+  // Notify the lawyer live that they're now verified and eligible to
+  // receive offer.new notifications.
+  await notifyUser({
+    userId: (data as LawyerRow).user_id,
+    kind: "lawyer.verified",
+    title: "Your lawyer profile is verified",
+    body: "You'll now receive consultation offers as they come in.",
+    link: "/lawyer"
+  });
+
   return data as LawyerRow;
 }
 
@@ -229,6 +253,14 @@ export async function suspendLawyer(args: {
     })
     .eq("lawyer_id", args.lawyerId)
     .in("status", ["submitted", "in_review", "approved"]);
+
+  await notifyUser({
+    userId: (data as LawyerRow).user_id,
+    kind: "lawyer.suspended",
+    title: "Your lawyer profile is suspended",
+    body: args.reason.slice(0, 200),
+    link: "/lawyer"
+  });
 
   return data as LawyerRow;
 }

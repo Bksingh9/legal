@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface OfferRow {
   id: string;
@@ -32,7 +33,49 @@ export function LawyerOffersList() {
   }
 
   useEffect(() => {
+    let unsub: (() => void) | null = null;
     load();
+    const supa = getSupabaseBrowserClient();
+    if (supa) {
+      void (async () => {
+        const {
+          data: { user }
+        } = await supa.auth.getUser();
+        if (!user) return;
+        // Resolve the lawyer row id for this user so we can filter the
+        // realtime feed server-side.
+        const { data: lw } = await supa
+          .from("lawyers")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (!lw?.id) return;
+        const channel = supa
+          .channel(`offers:${lw.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "consultation_offers",
+              filter: `lawyer_id=eq.${lw.id}`
+            },
+            () => {
+              // Cheap: refetch from the REST endpoint to pick up the
+              // joined fields (specialization, language, state) without
+              // duplicating the query here.
+              void load();
+            }
+          )
+          .subscribe();
+        unsub = () => {
+          void supa.removeChannel(channel);
+        };
+      })();
+    }
+    return () => {
+      if (unsub) unsub();
+    };
   }, []);
 
   async function act(id: string, kind: "accept" | "decline") {
