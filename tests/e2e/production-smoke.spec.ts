@@ -200,3 +200,22 @@ test.describe("tiers section + landing content", () => {
     await expect(page.getByText(/₹999 \/ year/i)).toBeVisible();
   });
 });
+
+test.describe("magic-link send (no inbox check)", () => {
+  test("submitting a real email on /auth/login reaches a terminal state", async ({
+    page
+  }) => {
+    // Supabase free tier rate-limits OTP emails to 3/hour. Either the
+    // success state appears or a rate-limit message — both prove the
+    // form is wired to Supabase Auth correctly. We accept either.
+    const email = `qa-magiclink+${Date.now()}@legaldesk-test.ai`;
+    await page.goto("/auth/login?next=/triage");
+    await page.locator("input[type=email]").fill(email);
+    await page.getByRole("button", { name: /Send sign-in link/i }).click();
+    await expect(
+      page
+        .getByText(/Check your email|email rate limit|too many requests|please wait/i)
+        .first()
+    ).toBeVisible({ timeout: 20_000 });
+  });
+});

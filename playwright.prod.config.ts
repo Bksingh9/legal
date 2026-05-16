@@ -35,6 +35,11 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] }
     },
     {
+      name: "anonymous-firefox",
+      testMatch: /production-smoke\.spec\.ts$/,
+      use: { ...devices["Desktop Firefox"] }
+    },
+    {
       name: "authed",
       testMatch: /production-authed\.spec\.ts$/,
       dependencies: ["setup"],

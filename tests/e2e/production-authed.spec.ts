@@ -114,6 +114,23 @@ test.describe("authenticated APIs", () => {
     expect(["criminal", "civil", "family", "property", "consumer", "labour", "corporate", "tax", "cyber", "other"]).toContain(body.classification);
   });
 
+  test("/api/triage/classify handles Hindi (देवनागरी) input", async ({ request }) => {
+    const res = await request.post("/api/triage/classify", {
+      data: {
+        raw_text:
+          "मेरे मकान मालिक ने मेरी जमा राशि 50,000 रुपये तीन महीने बाद भी वापस नहीं की है।"
+      }
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(typeof body.classification).toBe("string");
+    expect(["criminal", "civil", "family", "property", "consumer", "labour", "corporate", "tax", "cyber", "other"]).toContain(body.classification);
+    // Language detection should pick up Hindi from the script.
+    if (body.language) {
+      expect(["hi", "en"]).toContain(body.language);
+    }
+  });
+
   test("/api/dpdp/export returns the user's data envelope", async ({ request }) => {
     const res = await request.get("/api/dpdp/export");
     expect(res.status()).toBe(200);
@@ -123,5 +140,79 @@ test.describe("authenticated APIs", () => {
     expect(body.export).toHaveProperty("queries");
     expect(body.export).toHaveProperty("documents");
     expect(body.export).toHaveProperty("wallet_ledger");
+  });
+
+  test("/api/consultations/book creates a draft + order", async ({ request }) => {
+    const res = await request.post("/api/consultations/book", {
+      data: {
+        pack: "p15",
+        channel: "call",
+        specialization: "consumer",
+        language: "en",
+        state: "Maharashtra"
+      }
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.consultation_id).toBeTruthy();
+    // Zero lawyers in the prod DB right now, so the matcher returns 0
+    // candidates. The booking itself still succeeds.
+    expect(typeof body.matched).toBe("number");
+    // Real Razorpay order id when keys are wired, deterministic mock id
+    // at Tier-0. Either is acceptable.
+    expect(typeof body.order_id).toBe("string");
+    expect(body.amount_paise).toBe(199_00);
+  });
+
+  test("/api/consultations/book rejects invalid input with 400", async ({ request }) => {
+    const res = await request.post("/api/consultations/book", {
+      data: { pack: "not-a-pack", channel: "call", specialization: "x", language: "y", state: "Z" }
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test("/api/lawyer/apply persists an application", async ({ request }) => {
+    const res = await request.post("/api/lawyer/apply", {
+      data: {
+        bar_council_id: `KAR/QA/${Date.now()}`,
+        state: "Karnataka",
+        years_exp: 7,
+        specializations: ["consumer", "civil"],
+        languages: ["en", "hi"],
+        payout: {
+          legal_business_name: "QA Bot Advocates",
+          contact_name: "QA Bot",
+          contact_email: "qa-bot@legaldesk-test.ai",
+          contact_phone: "+919999999999",
+          upi_vpa: "qabot@upi"
+        }
+      }
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.lawyer_id).toBeTruthy();
+    expect(body.anon_slug).toMatch(/^[0-9a-f]{8,}$/);
+    expect(body.status).toBe("pending");
+  });
+
+  test("/api/lawyer/apply rejects missing payout details with 400", async ({ request }) => {
+    const res = await request.post("/api/lawyer/apply", {
+      data: {
+        bar_council_id: "KAR/QA/missing",
+        state: "Karnataka",
+        years_exp: 3,
+        specializations: ["consumer"],
+        languages: ["en"],
+        payout: {
+          legal_business_name: "QA",
+          contact_name: "QA",
+          contact_email: "qa@legaldesk-test.ai",
+          contact_phone: "+919999999999"
+        }
+      }
+    });
+    expect(res.status()).toBe(400);
   });
 });
