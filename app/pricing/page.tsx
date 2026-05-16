@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { StartPlusButton } from "@/components/pricing/start-plus";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -9,15 +8,12 @@ export const metadata = {
 };
 export const dynamic = "force-dynamic";
 
+// /pricing is intentionally public — visitors need to see what they'd
+// pay before signing up. The StartPlusButton itself handles the auth
+// gate at the moment a user tries to begin a subscription.
 export default async function PricingPage() {
   const supa = getSupabaseServerClient();
-  let mockMode = !supa;
-  if (supa) {
-    const {
-      data: { user }
-    } = await supa.auth.getUser();
-    if (!user) redirect("/auth/login?next=/pricing");
-  }
+  const mockMode = !supa;
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-10 px-6 py-12">

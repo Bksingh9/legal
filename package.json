@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "test:e2e:prod": "playwright test --config=playwright.prod.config.ts",
     "test:e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
