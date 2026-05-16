@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DpdpControls } from "@/components/account/dpdp-controls";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -34,6 +35,15 @@ export default async function AccountPage() {
       ) : null}
 
       <DpdpControls />
+
+      <nav className="mt-2 flex flex-wrap gap-4 text-sm text-brand-700">
+        <Link href="/account/inbox" className="underline">
+          Inbox
+        </Link>
+        <Link href="/referrals" className="underline">
+          Referrals
+        </Link>
+      </nav>
     </main>
   );
 }

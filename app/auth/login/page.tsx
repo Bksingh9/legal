@@ -28,6 +28,11 @@ export default async function LoginPage({
       <div className="mt-6">
         <LoginForm next={next} />
       </div>
+      <p className="mt-3 text-xs text-neutral-500">
+        Heads up: the free-tier mailer is rate-limited to 3 emails per
+        hour. If you see &quot;email rate limit exceeded&quot;, wait an
+        hour or use a different address.
+      </p>
       {searchParams.error ? (
         <p className="mt-4 text-sm text-red-600">
           Sign-in failed ({searchParams.error}). Try again.
