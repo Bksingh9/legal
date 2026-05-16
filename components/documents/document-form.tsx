@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Disclaimer } from "@/components/triage/disclaimer";
 import { DocumentPreview } from "@/components/documents/document-preview";
 import { CheckoutButton } from "@/components/documents/checkout-button";
+import { FreeDownload } from "@/components/documents/free-download";
 import { setDeep, getDeep } from "@/lib/forms/types";
 import type { FormSpec, FieldSpec } from "@/lib/forms/types";
 
@@ -28,9 +29,10 @@ type Stage =
 interface Props {
   sku: SkuSummary;
   spec: FormSpec;
+  razorpayConfigured?: boolean;
 }
 
-export function DocumentForm({ sku, spec }: Props) {
+export function DocumentForm({ sku, spec, razorpayConfigured = false }: Props) {
   const [values, setValues] = useState<Record<string, unknown>>(() =>
     seedDefaults(spec)
   );
@@ -155,13 +157,31 @@ export function DocumentForm({ sku, spec }: Props) {
         <div className="flex flex-col gap-6">
           <Disclaimer />
           <DocumentPreview doc={stage.doc} />
-          <div className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-4">
-            <Button type="button" variant="outline" onClick={() => setStage({ kind: "edit" })}>
-              Back to edit
-            </Button>
-            <Button type="button" onClick={commitDraft} disabled={stage.kind !== "preview"}>
-              Continue to payment
-            </Button>
+          <div className="flex flex-col gap-4 rounded-md border border-neutral-200 bg-neutral-50 p-4">
+            <div>
+              <p className="text-sm font-medium">Download your document</p>
+              <p className="mt-1 text-xs text-neutral-600">
+                The draft above is yours. Download it as a PDF or editable
+                DOCX — free, no payment required.
+              </p>
+            </div>
+            <FreeDownload skuId={sku.id} values={values} />
+            <div className="flex items-center justify-between">
+              <Button type="button" variant="ghost" onClick={() => setStage({ kind: "edit" })}>
+                Back to edit
+              </Button>
+              {razorpayConfigured ? (
+                <Button type="button" onClick={commitDraft} disabled={stage.kind !== "preview"}>
+                  Pay for delivery ({priceLabel(sku.price_paise, addon)})
+                </Button>
+              ) : null}
+            </div>
+            {razorpayConfigured ? (
+              <p className="text-xs text-neutral-500">
+                Paid delivery emails the branded PDF + DOCX
+                {sku.allow_addon_lawyer_review ? " and unlocks lawyer review" : ""}.
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}

@@ -32,6 +32,56 @@ test.describe("authenticated /triage flow", () => {
 });
 
 test.describe("authenticated /documents flow", () => {
+  test("legal-notice form -> preview -> free download (PDF + DOCX)", async ({ page }) => {
+    await page.goto("/documents/legal-notice");
+
+    await page.getByLabel(/Full name \*/i).first().fill("Brij Kishor Singh");
+    await page.getByLabel(/Address \*/i).first().fill("45 Yari Road, Andheri West, Mumbai 400053");
+    await page.getByLabel(/Full name \*/i).nth(1).fill("Acme Properties LLP");
+    await page.getByLabel(/Address \*/i).nth(1).fill("Andheri East, Mumbai 400069");
+    await page.getByLabel(/Date of event \*/i).fill("2026-04-01");
+    await page.getByLabel(/Place \*/i).fill("Mumbai");
+    await page
+      .getByLabel(/Describe what happened, in plain language \*/i)
+      .fill(
+        "Failure to refund the security deposit of Rs 50,000 paid at the start of the tenancy."
+      );
+    await page
+      .getByLabel(/What action are you demanding\? \*/i)
+      .fill("Refund the security deposit of Rs 50,000 in full.");
+    await page.getByLabel(/Deadline \(days from receipt\) \*/i).fill("15");
+
+    await page.getByRole("button", { name: /Preview document/i }).click();
+    await expect(
+      page.getByRole("heading", { name: "LEGAL NOTICE", exact: true })
+    ).toBeVisible({ timeout: 30_000 });
+
+    // PDF download
+    const pdfDownload = page.waitForEvent("download", { timeout: 30_000 });
+    await page.getByRole("button", { name: /Download as PDF/i }).click();
+    const pdfFile = await pdfDownload;
+    expect(pdfFile.suggestedFilename()).toMatch(/\.pdf$/i);
+    const pdfPath = await pdfFile.path();
+    expect(pdfPath, "PDF should have a path on disk").toBeTruthy();
+    const fs = await import("node:fs/promises");
+    const pdfBytes = await fs.readFile(pdfPath!);
+    // Real PDF files start with the %PDF- magic header.
+    expect(pdfBytes.slice(0, 4).toString("utf8")).toBe("%PDF");
+    expect(pdfBytes.length).toBeGreaterThan(1000);
+
+    // DOCX download
+    const docxDownload = page.waitForEvent("download", { timeout: 30_000 });
+    await page.getByRole("button", { name: /Download as DOCX/i }).click();
+    const docxFile = await docxDownload;
+    expect(docxFile.suggestedFilename()).toMatch(/\.docx$/i);
+    const docxPath = await docxFile.path();
+    expect(docxPath, "DOCX should have a path on disk").toBeTruthy();
+    const docxBytes = await fs.readFile(docxPath!);
+    // DOCX is a zip archive — the magic header is "PK\x03\x04".
+    expect(docxBytes.slice(0, 2).toString("utf8")).toBe("PK");
+    expect(docxBytes.length).toBeGreaterThan(1000);
+  });
+
   test("legal-notice form fills and previews", async ({ page }) => {
     await page.goto("/documents/legal-notice");
     await expect(page.getByRole("heading", { name: /Legal notice/i })).toBeVisible();
@@ -195,6 +245,86 @@ test.describe("authenticated APIs", () => {
     expect(body.lawyer_id).toBeTruthy();
     expect(body.anon_slug).toMatch(/^[0-9a-f]{8,}$/);
     expect(body.status).toBe("pending");
+  });
+
+  test("/api/documents/[sku]/download returns a real PDF for valid input", async ({
+    request
+  }) => {
+    const res = await request.post(
+      "/api/documents/legal-notice/download?format=pdf",
+      {
+        data: {
+          sender: {
+            name: "Brij Kishor Singh",
+            address: "45 Yari Road, Andheri West, Mumbai 400053"
+          },
+          recipient: {
+            name: "Acme Properties LLP",
+            address: "Andheri East, Mumbai 400069"
+          },
+          cause: {
+            date_of_event: "2026-04-01",
+            place: "Mumbai",
+            description:
+              "Failure to refund the security deposit of Rs 50,000 paid at the start of the tenancy."
+          },
+          demand: {
+            summary: "Refund the security deposit of Rs 50,000 in full.",
+            deadline_days: 15
+          }
+        }
+      }
+    );
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("application/pdf");
+    expect(res.headers()["content-disposition"]).toContain("attachment");
+    const bytes = await res.body();
+    expect(bytes.slice(0, 4).toString("utf8")).toBe("%PDF");
+    expect(bytes.byteLength).toBeGreaterThan(1000);
+  });
+
+  test("/api/documents/[sku]/download returns a real DOCX for valid input", async ({
+    request
+  }) => {
+    const res = await request.post(
+      "/api/documents/rti-application/download?format=docx",
+      {
+        data: {
+          applicant: {
+            name: "Brij Kishor Singh",
+            address: "45 Yari Road, Andheri West, Mumbai 400053",
+            phone: "+919999999999",
+            is_indian_citizen: true,
+            is_bpl: false
+          },
+          public_authority: {
+            name: "Municipal Commissioner, BMC",
+            address: "Mahapalika Marg, Mumbai 400001"
+          },
+          subject: "Request for status of pothole repair complaints",
+          information_sought: [
+            "How many pothole complaints were filed in Ward H/West in 2025?",
+            "How many of those were resolved within 15 days?"
+          ],
+          period: { from: "2025-01-01", to: "2025-12-31" }
+        }
+      }
+    );
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("wordprocessingml.document");
+    const bytes = await res.body();
+    expect(bytes.slice(0, 2).toString("utf8")).toBe("PK");
+    expect(bytes.byteLength).toBeGreaterThan(1000);
+  });
+
+  test("/api/documents/[sku]/download rejects invalid format with 400", async ({
+    request
+  }) => {
+    const res = await request.post(
+      "/api/documents/legal-notice/download?format=xls",
+      { data: {} }
+    );
+    expect(res.status()).toBe(400);
   });
 
   test("/api/lawyer/apply rejects missing payout details with 400", async ({ request }) => {

@@ -48,8 +48,9 @@ export default async function DocumentSkuPage({
 
       {mockMode ? (
         <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          Running in mock mode. Form, preview and template render work; checkout will
-          stop at order creation since Razorpay is not configured.
+          Running in mock mode. Form, preview, template render and free
+          download all work; paid delivery is hidden until Razorpay is
+          configured.
         </p>
       ) : null}
 
@@ -62,6 +63,7 @@ export default async function DocumentSkuPage({
           allow_addon_lawyer_review: meta.allow_addon_lawyer_review
         }}
         spec={spec}
+        razorpayConfigured={Boolean(process.env.RAZORPAY_KEY_ID)}
       />
     </main>
   );
