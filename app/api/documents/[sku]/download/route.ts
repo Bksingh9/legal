@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { renderForSku } from "@/lib/templates";
 import { getSkuMeta } from "@/lib/skus";
-import { getCurrentUserId } from "@/lib/triage/persistence";
 import { renderDocumentPdf } from "@/lib/pdf/document-render";
 import { renderDocumentDocx } from "@/lib/docx/document-render";
 
@@ -24,10 +23,8 @@ export async function POST(
     return NextResponse.json({ error: "Unknown SKU." }, { status: 404 });
   }
 
-  const userId = await getCurrentUserId();
-  if (!userId && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Sign in." }, { status: 401 });
-  }
+  // Public free download — anyone can render and download the draft.
+  // Persistence happens elsewhere when authenticated.
 
   const url = new URL(req.url);
   const format = url.searchParams.get("format") ?? "pdf";

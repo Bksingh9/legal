@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getSkuMeta, listSkus, LAWYER_REVIEW_ADDON_PAISE } from "@/lib/skus";
 import { getFormSpec } from "@/lib/forms";
 import { DocumentForm } from "@/components/documents/document-form";
@@ -10,6 +10,10 @@ export function generateStaticParams() {
 
 export const dynamic = "force-dynamic";
 
+// Document SKU pages are intentionally PUBLIC — anyone can fill the
+// form, preview the rendered draft, and download the free PDF/DOCX
+// without signing up. Auth is required only for "save to inbox",
+// paid lawyer review, and any consultation booking.
 export default async function DocumentSkuPage({
   params
 }: {
@@ -20,12 +24,13 @@ export default async function DocumentSkuPage({
   if (!meta || !spec) notFound();
 
   const supa = getSupabaseServerClient();
-  let mockMode = !supa;
+  const mockMode = !supa;
+  let signedIn = false;
   if (supa) {
     const {
       data: { user }
     } = await supa.auth.getUser();
-    if (!user) redirect(`/auth/login?next=/documents/${params.sku}`);
+    signedIn = Boolean(user);
   }
 
   const totalIfAddon = meta.price_paise + LAWYER_REVIEW_ADDON_PAISE;
@@ -46,11 +51,16 @@ export default async function DocumentSkuPage({
         </p>
       </header>
 
+      {!signedIn ? (
+        <p className="rounded-md border border-ink-100 bg-ink-50 p-3 text-xs text-ink-700">
+          Free to use — no sign-up needed. Fill the form, preview the
+          draft, download the PDF/DOCX. Sign in only when you want to
+          save it, share it, or add lawyer review.
+        </p>
+      ) : null}
       {mockMode ? (
         <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          Running in mock mode. Form, preview, template render and free
-          download all work; paid delivery is hidden until Razorpay is
-          configured.
+          Running in mock mode.
         </p>
       ) : null}
 

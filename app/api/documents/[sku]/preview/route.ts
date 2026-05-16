@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { renderForSku } from "@/lib/templates";
 import { getSkuMeta } from "@/lib/skus";
-import { getCurrentUserId } from "@/lib/triage/persistence";
 
 export const runtime = "nodejs";
 
+// Public: preview is part of the free-trial conversion path. No auth.
 export async function POST(
   req: Request,
   { params }: { params: { sku: string } }
@@ -12,11 +12,6 @@ export async function POST(
   const sku = params.sku;
   const meta = getSkuMeta(sku);
   if (!meta) return NextResponse.json({ error: "Unknown SKU." }, { status: 404 });
-
-  const userId = await getCurrentUserId();
-  if (!userId && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Sign in." }, { status: 401 });
-  }
 
   let body: unknown;
   try {

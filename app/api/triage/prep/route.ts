@@ -33,9 +33,8 @@ export async function POST(req: Request) {
   }
 
   const userId = await getCurrentUserId();
-  if (!userId && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Sign in to triage." }, { status: 401 });
-  }
+  // Public: anonymous visitors get the prep; persistence + PDF upload
+  // only when authenticated.
 
   let rawText = parsed.raw_text ?? "";
   let classification = parsed.classification ?? "other";

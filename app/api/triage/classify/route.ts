@@ -19,11 +19,9 @@ export async function POST(req: Request) {
   }
 
   const userId = await getCurrentUserId();
-  // Mock mode (no Supabase auth wired): allow the call to proceed without
-  // persistence. Mirrors the waitlist route's degraded behaviour.
-  if (!userId && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Sign in to triage." }, { status: 401 });
-  }
+  // Public endpoint: anonymous visitors can run triage. Persistence
+  // only fires when a real user is signed in — otherwise the call
+  // returns the classification without writing a `queries` row.
 
   const anthropic = getAnthropic();
   let result;

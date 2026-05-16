@@ -18,19 +18,16 @@ import { test, expect, type Page, type APIResponse } from "@playwright/test";
 
 const PUBLIC_PAGES = [
   { path: "/", titleFragment: "LegalDesk", h1: /AI-powered legal help for India/i },
+  { path: "/triage", titleFragment: "AI triage", h1: /Tell us what happened/i },
+  { path: "/documents/legal-notice", titleFragment: "LegalDesk", h1: /Legal notice/i },
   { path: "/pricing", titleFragment: "Pricing", h1: /Pay per document|Plus|Pricing/i },
   { path: "/blog", titleFragment: "LegalDesk", h1: /Indian legal explainers|Blog/i },
+  { path: "/for-lawyers", titleFragment: "advocates", h1: /matched with paying clients/i },
   { path: "/privacy", titleFragment: "Privacy Policy", h1: /Privacy Policy/i },
   { path: "/terms", titleFragment: "Terms of Service", h1: /Terms of Service/i }
 ];
 
 const AUTH_GATED_PATHS = [
-  "/triage",
-  "/documents/legal-notice",
-  "/documents/reply-legal-notice",
-  "/documents/rent-agreement-11m",
-  "/documents/consumer-complaint-ncdrc",
-  "/documents/rti-application",
   "/consult",
   "/lawyer",
   "/account",
@@ -138,20 +135,50 @@ test.describe("APIs", () => {
     expect(res.status()).toBe(400);
   });
 
-  test("/api/triage/classify requires auth", async ({ request }) => {
+  test("/api/triage/classify is public (no auth required)", async ({ request }) => {
     const res = await request.post("/api/triage/classify", {
-      data: { raw_text: "test query for prod smoke" }
+      data: { raw_text: "My landlord refused to refund my deposit of Rs 50000." }
     });
-    expect([401, 403]).toContain(res.status());
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(typeof body.classification).toBe("string");
+    expect(body.persisted).toBe(false);
   });
 
-  test("/api/triage/transcribe requires auth", async ({ request }) => {
+  test("/api/triage/transcribe still 501s when STT is unconfigured", async ({ request }) => {
     const res = await request.post("/api/triage/transcribe", {
       multipart: {
         audio: { name: "x.webm", mimeType: "audio/webm", buffer: Buffer.from("0") }
       }
     });
-    expect([400, 401, 413, 501]).toContain(res.status());
+    expect([400, 413, 501]).toContain(res.status());
+  });
+
+  test("/api/documents/legal-notice/download issues a real PDF without auth", async ({
+    request
+  }) => {
+    const res = await request.post(
+      "/api/documents/legal-notice/download?format=pdf",
+      {
+        data: {
+          sender: { name: "QA Anon", address: "1 Test Lane, Mumbai 400001" },
+          recipient: { name: "Acme LLP", address: "2 Test Road, Mumbai 400002" },
+          cause: {
+            date_of_event: "2026-04-01",
+            place: "Mumbai",
+            description:
+              "Failure to refund deposit of Rs 50000 paid at start of tenancy."
+          },
+          demand: {
+            summary: "Refund the deposit in full.",
+            deadline_days: 15
+          }
+        }
+      }
+    );
+    expect(res.status()).toBe(200);
+    const bytes = await res.body();
+    expect(bytes.slice(0, 4).toString("utf8")).toBe("%PDF");
   });
 });
 
