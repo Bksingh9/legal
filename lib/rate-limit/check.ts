@@ -67,8 +67,8 @@ export async function rateLimit(
     console.error("[rate-limit] rpc failed", error);
     return { allowed: true, count: 0, resetAt: new Date(Date.now() + windowSec * 1000).toISOString() };
   }
-  const row = data[0] as { allowed: boolean; count: number; reset_at: string };
-  return { allowed: row.allowed, count: row.count, resetAt: row.reset_at };
+  const row = data[0] as { allowed: boolean; hit_count: number; reset_at: string };
+  return { allowed: row.allowed, count: row.hit_count, resetAt: row.reset_at };
 }
 
 // Convenience wrapper that returns a Response object directly when
