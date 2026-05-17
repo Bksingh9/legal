@@ -4,6 +4,8 @@ import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { notifyMany, getAdminUserIds } from "@/lib/notify/inbox";
 import { classify as classifyLocal } from "@/lib/llm/local/classify";
 import { POLICY_VERSION } from "@/lib/policy/version";
+import { rateLimitOrReject } from "@/lib/rate-limit/check";
+import { verifyTurnstile } from "@/lib/captcha/turnstile";
 
 export const runtime = "nodejs";
 
@@ -16,13 +18,19 @@ const Body = z.object({
   email: z.string().email().optional().or(z.literal("")),
   city: z.string().trim().max(80).optional().or(z.literal("")),
   issue: z.string().trim().min(20).max(400),
-  marketing_opt_in: z.boolean().optional().default(false)
+  marketing_opt_in: z.boolean().optional().default(false),
+  captcha_token: z.string().optional()
 });
 
 // Vakilsearch-style fast intake: name + phone + 1-line issue. Writes a
 // lightweight `consultation_leads` row and pages every admin live so
 // the call-back happens within the promised SLA. Zero-key.
 export async function POST(req: Request) {
+  // Rate limit before any work — 20 lead submissions per minute per IP
+  // is generous for humans, restrictive for bots.
+  const limited = await rateLimitOrReject(req, { bucket: "consult-leads", max: 20 });
+  if (limited) return limited;
+
   let parsed: z.infer<typeof Body>;
   try {
     parsed = Body.parse(await req.json());
@@ -32,6 +40,15 @@ export async function POST(req: Request) {
         ? e.issues.map((i) => i.message).join("; ")
         : "Invalid input.";
     return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  // Optional bot check (no-op when CF_TURNSTILE_SECRET is unset).
+  const captcha = await verifyTurnstile(parsed.captcha_token);
+  if (!captcha.ok) {
+    return NextResponse.json(
+      { error: "Captcha verification failed." },
+      { status: 400 }
+    );
   }
 
   // Local-LLM classification (deterministic templates, no API key) so

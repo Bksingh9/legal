@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import { rateLimitOrReject } from "@/lib/rate-limit/check";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,9 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
+  const limited = await rateLimitOrReject(req, { bucket: "waitlist", max: 10 });
+  if (limited) return limited;
+
   let parsed;
   try {
     parsed = Body.parse(await req.json());

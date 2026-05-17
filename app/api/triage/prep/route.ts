@@ -10,6 +10,7 @@ import {
 } from "@/lib/triage/persistence";
 import { renderCasePrepPdf } from "@/lib/pdf/case-prep";
 import { uploadCasePrepPdf } from "@/lib/storage/case-prep";
+import { rateLimitOrReject } from "@/lib/rate-limit/check";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,9 @@ const Body = z
   });
 
 export async function POST(req: Request) {
+  const limited = await rateLimitOrReject(req, { bucket: "triage-prep", max: 30 });
+  if (limited) return limited;
+
   let parsed: z.infer<typeof Body>;
   try {
     parsed = Body.parse(await req.json());

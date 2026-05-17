@@ -3,6 +3,7 @@ import { renderForSku } from "@/lib/templates";
 import { getSkuMeta } from "@/lib/skus";
 import { renderDocumentPdf } from "@/lib/pdf/document-render";
 import { renderDocumentDocx } from "@/lib/docx/document-render";
+import { rateLimitOrReject } from "@/lib/rate-limit/check";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,9 @@ export async function POST(
   req: Request,
   { params }: { params: { sku: string } }
 ) {
+  const limited = await rateLimitOrReject(req, { bucket: "doc-download", max: 30 });
+  if (limited) return limited;
+
   const meta = getSkuMeta(params.sku);
   if (!meta) {
     return NextResponse.json({ error: "Unknown SKU." }, { status: 404 });

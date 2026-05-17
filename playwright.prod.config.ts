@@ -22,7 +22,13 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: "retain-on-failure",
     headless: true,
-    ignoreHTTPSErrors: true
+    ignoreHTTPSErrors: true,
+    // Rate limiter on public endpoints skips requests carrying this
+    // header (value matches RATE_LIMIT_BYPASS_KEY on the server).
+    // Production users never set this header; tests do.
+    extraHTTPHeaders: process.env.RATE_LIMIT_BYPASS_KEY
+      ? { "x-rate-limit-bypass": process.env.RATE_LIMIT_BYPASS_KEY }
+      : undefined
   },
   projects: [
     {

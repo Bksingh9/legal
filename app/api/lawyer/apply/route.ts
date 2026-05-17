@@ -4,10 +4,14 @@ import { LawyerApplyInput } from "@/lib/lawyers/types";
 import { getCurrentUserId } from "@/lib/triage/persistence";
 import { upsertLawyerApplication } from "@/lib/lawyers/persistence";
 import { createLinkedAccount } from "@/lib/razorpay/route";
+import { rateLimitOrReject } from "@/lib/rate-limit/check";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const limited = await rateLimitOrReject(req, { bucket: "lawyer-apply", max: 10 });
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await req.json();

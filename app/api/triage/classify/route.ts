@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAnthropic } from "@/lib/anthropic/client";
 import { getCurrentUserId, insertClassifiedQuery } from "@/lib/triage/persistence";
+import { rateLimitOrReject } from "@/lib/rate-limit/check";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,9 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
+  const limited = await rateLimitOrReject(req, { bucket: "triage-classify", max: 60 });
+  if (limited) return limited;
+
   let parsed: z.infer<typeof Body>;
   try {
     parsed = Body.parse(await req.json());
