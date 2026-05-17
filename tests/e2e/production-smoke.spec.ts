@@ -63,12 +63,15 @@ test.describe("public pages", () => {
     });
   }
 
-  test("landing CTAs link to /triage and /documents (not waitlist)", async ({ page }) => {
+  test("landing CTAs link to the live product surfaces (not waitlist)", async ({ page }) => {
     await page.goto("/");
-    const triageCta = page.getByRole("link", { name: /Start free triage/i });
+    const talkCta = page.getByRole("link", { name: /Talk to a lawyer/i }).first();
+    const triageCta = page.getByRole("link", { name: /Free AI triage/i });
     const docsCta = page.getByRole("link", { name: /Browse documents/i });
+    await expect(talkCta).toBeVisible();
     await expect(triageCta).toBeVisible();
     await expect(docsCta).toBeVisible();
+    await expect(talkCta).toHaveAttribute("href", "/talk-to-lawyer");
     await expect(triageCta).toHaveAttribute("href", "/triage");
     await expect(docsCta).toHaveAttribute("href", "/documents");
 
