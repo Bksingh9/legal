@@ -78,6 +78,11 @@ export function LawyerOffersList() {
     };
   }, []);
 
+  const [accepted, setAccepted] = useState<{
+    consultationId: string;
+    waLink: string | null;
+  } | null>(null);
+
   async function act(id: string, kind: "accept" | "decline") {
     setBusy(`${id}:${kind}`);
     setError(null);
@@ -87,12 +92,60 @@ export function LawyerOffersList() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Action failed.");
+      if (kind === "accept" && data.consultation_id) {
+        setAccepted({
+          consultationId: data.consultation_id,
+          waLink: data.client_whatsapp_link ?? null
+        });
+      }
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Action failed.");
     } finally {
       setBusy(null);
     }
+  }
+
+  if (accepted) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="rounded-md border border-green-300 bg-green-50 p-4 text-sm">
+          <p className="text-base font-semibold text-green-900">
+            Offer accepted. Other lawyers&apos; pending offers on this
+            consultation are now expired.
+          </p>
+          <p className="mt-2 text-green-800">
+            Reference:{" "}
+            <span className="font-mono">{accepted.consultationId.slice(0, 8)}</span>
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {accepted.waLink ? (
+              <a
+                href={accepted.waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-10 items-center justify-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Message client on WhatsApp
+              </a>
+            ) : null}
+            <a
+              href={`/consultations/${accepted.consultationId}`}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-ink-200 bg-white px-4 text-sm font-medium text-ink-900 hover:bg-ink-50"
+            >
+              Open waiting room
+            </a>
+            <button
+              type="button"
+              onClick={() => setAccepted(null)}
+              className="inline-flex h-10 items-center justify-center rounded-md px-4 text-sm text-ink-700 hover:bg-ink-50"
+            >
+              Back to offers
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (offers.length === 0) {

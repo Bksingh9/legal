@@ -39,6 +39,14 @@ export const LawyerApplyInput = z.object({
   years_exp: z.number().int().min(0).max(60),
   specializations: z.array(z.enum(SPECIALIZATIONS)).min(1).max(5),
   languages: z.array(z.enum(LAWYER_LANGUAGES)).min(1).max(6),
+  hours_per_week: z.number().int().min(1).max(60).default(5),
+  availability_note: z.string().trim().max(200).optional(),
+  notification_whatsapp: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9]{7,15}$/)
+    .optional()
+    .or(z.literal("")),
   payout: z.object({
     legal_business_name: z.string().trim().min(2).max(120),
     contact_name: z.string().trim().min(2).max(120),

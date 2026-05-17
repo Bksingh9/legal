@@ -17,10 +17,16 @@ export function Hero() {
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href="/triage"
+            href="/talk-to-lawyer"
             className="inline-flex h-12 items-center justify-center rounded-md bg-brand-600 px-6 text-base font-medium text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
-            Start free triage
+            Talk to a lawyer in 10 min
+          </Link>
+          <Link
+            href="/triage"
+            className="inline-flex h-12 items-center justify-center rounded-md border border-ink-200 bg-white px-6 text-base font-medium text-ink-900 transition-colors hover:bg-ink-50"
+          >
+            Free AI triage
           </Link>
           <Link
             href="/documents"

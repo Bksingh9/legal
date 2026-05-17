@@ -33,6 +33,9 @@ export function LawyerApplyForm() {
   const [years, setYears] = useState<number | "">("");
   const [specs, setSpecs] = useState<Specialization[]>([]);
   const [langs, setLangs] = useState<LawyerLanguage[]>([]);
+  const [hoursPerWeek, setHoursPerWeek] = useState<number | "">(5);
+  const [availabilityNote, setAvailabilityNote] = useState("");
+  const [notificationWhatsapp, setNotificationWhatsapp] = useState("");
   const [legalBiz, setLegalBiz] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -61,6 +64,9 @@ export function LawyerApplyForm() {
           years_exp: typeof years === "number" ? years : 0,
           specializations: specs,
           languages: langs,
+          hours_per_week: typeof hoursPerWeek === "number" ? hoursPerWeek : 5,
+          availability_note: availabilityNote || undefined,
+          notification_whatsapp: notificationWhatsapp || undefined,
           payout: {
             legal_business_name: legalBiz,
             contact_name: contactName,
@@ -83,7 +89,9 @@ export function LawyerApplyForm() {
       }
       setStage("submitted");
       setMessage(
-        `Application received. Reference: ${data.anon_slug}. Status: ${data.status}.`
+        data.check_email
+          ? `Application received. Reference: ${data.anon_slug}. Check ${contactEmail} for a sign-in link to open your dashboard.`
+          : `Application received. Reference: ${data.anon_slug}. Status: ${data.status}.`
       );
     } catch (err) {
       setStage("error");
@@ -160,6 +168,42 @@ export function LawyerApplyForm() {
             </label>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-3">
+        <legend className="text-sm font-semibold uppercase tracking-wide text-neutral-600">
+          Availability
+        </legend>
+        <label className="flex flex-col gap-1 text-sm">
+          <span>Hours per week you can take consultations (1–60) *</span>
+          <Input
+            type="number"
+            min={1}
+            max={60}
+            value={hoursPerWeek === "" ? "" : String(hoursPerWeek)}
+            onChange={(e) =>
+              setHoursPerWeek(e.target.value === "" ? "" : Number(e.target.value))
+            }
+            required
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span>Availability note (optional, max 200 chars)</span>
+          <Input
+            value={availabilityNote}
+            onChange={(e) => setAvailabilityNote(e.target.value)}
+            placeholder="e.g. Mon-Fri 6-9pm, Sat 10am-2pm"
+            maxLength={200}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span>WhatsApp number for alerts (optional, falls back to contact phone)</span>
+          <Input
+            value={notificationWhatsapp}
+            onChange={(e) => setNotificationWhatsapp(e.target.value)}
+            placeholder="+91XXXXXXXXXX"
+          />
+        </label>
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">

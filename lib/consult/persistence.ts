@@ -1,5 +1,6 @@
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { notifyUser, notifyMany } from "@/lib/notify/inbox";
+import { emailManyLawyersOfNewOffer } from "@/lib/notify/lawyer-alerts";
 import type { BookConsultInputType, PackId } from "./packs";
 
 export type ConsultStatus =
@@ -120,6 +121,10 @@ export async function attachOffers(args: {
       body: "A client wants to talk. First to accept wins.",
       link: "/lawyer/offers"
     });
+    // Best-effort email via Supabase mailer (reaches offline lawyers
+    // who aren't subscribed to Web Push). Rate-limited; failures are
+    // silent on purpose.
+    void emailManyLawyersOfNewOffer(lawyerUserIds);
   }
   return data as OfferRow[];
 }
