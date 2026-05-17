@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DpdpControls } from "@/components/account/dpdp-controls";
+import { PasswordCard } from "@/components/auth/password-card";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Your data — LegalDesk AI" };
@@ -35,6 +36,8 @@ export default async function AccountPage() {
       ) : null}
 
       <DpdpControls />
+
+      <PasswordCard />
 
       <nav className="mt-2 flex flex-wrap gap-4 text-sm text-brand-700">
         <Link href="/account/inbox" className="underline">
