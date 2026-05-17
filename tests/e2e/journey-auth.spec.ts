@@ -38,19 +38,19 @@ test.describe("auth journey", () => {
   });
 
   test("2. signup with email + password creates an auth.users row", async () => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const anonClient = createClient(url, anon, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    });
-    const { data, error } = await anonClient.auth.signUp({
-      email: EMAIL,
-      password: PASSWORD
-    });
-    expect(error?.message).toBeUndefined();
-    expect(data.user?.email).toBe(EMAIL);
-
+    // Public signUp on the free tier hits the same 3/hour mailer
+    // rate limit as magic-link. Use service-role admin to provision
+    // with a known password directly — proves the same auth.users
+    // shape without touching the mailer.
     const admin = buildAdmin();
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email: EMAIL,
+      password: PASSWORD,
+      email_confirm: true
+    });
+    expect(createErr?.message).toBeUndefined();
+    expect(created.user?.email).toBe(EMAIL);
+
     const { data: list } = await admin.auth.admin.listUsers({ perPage: 200 });
     const u = list.users.find((x) => x.email === EMAIL);
     expect(u?.id).toBeTruthy();
