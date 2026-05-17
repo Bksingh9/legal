@@ -54,6 +54,21 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] }
     },
     {
+      name: "journey-customer",
+      testMatch: /journey-customer\.spec\.ts$/,
+      use: { ...devices["Desktop Chrome"] }
+    },
+    {
+      name: "journey-lawyer",
+      testMatch: /journey-lawyer\.spec\.ts$/,
+      use: { ...devices["Desktop Chrome"] }
+    },
+    {
+      name: "journey-admin",
+      testMatch: /journey-admin\.spec\.ts$/,
+      use: { ...devices["Desktop Chrome"] }
+    },
+    {
       name: "teardown",
       testMatch: /_setup\/auth\.teardown\.ts$/,
       dependencies: ["authed"]
