@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConsentCheckbox } from "@/components/legal/consent-checkbox";
 
 type Stage = "idle" | "submitting" | "submitted" | "error";
 
@@ -12,12 +13,18 @@ export function LeadCapture() {
   const [issue, setIssue] = useState("");
   const [city, setCity] = useState("");
   const [email, setEmail] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!consent) {
+      setError("Please accept the Terms and Privacy Policy to continue.");
+      return;
+    }
     if (name.trim().length < 2) {
       setError("Please enter your name.");
       return;
@@ -41,7 +48,8 @@ export function LeadCapture() {
           phone: phone.trim(),
           issue: issue.trim(),
           city: city.trim() || undefined,
-          email: email.trim() || undefined
+          email: email.trim() || undefined,
+          marketing_opt_in: marketingOptIn
         })
       });
       const data = await res.json();
@@ -144,18 +152,18 @@ export function LeadCapture() {
         </label>
       </div>
 
-      <Button type="submit" size="lg" disabled={stage === "submitting"}>
+      <ConsentCheckbox
+        checked={consent}
+        onChange={setConsent}
+        marketingOptIn={marketingOptIn}
+        onMarketingChange={setMarketingOptIn}
+        disabled={stage === "submitting"}
+      />
+
+      <Button type="submit" size="lg" disabled={stage === "submitting" || !consent}>
         {stage === "submitting" ? "Submitting…" : "Call me back in 10 minutes"}
       </Button>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      <p className="text-xs text-ink-400">
-        We&apos;ll only use your phone to connect you with an advocate.
-        DPDP-compliant — see our{" "}
-        <a href="/privacy" className="underline">
-          privacy policy
-        </a>
-        .
-      </p>
     </form>
   );
 }

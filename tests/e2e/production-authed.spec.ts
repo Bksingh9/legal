@@ -230,6 +230,8 @@ test.describe("authenticated APIs", () => {
         years_exp: 7,
         specializations: ["consumer", "civil"],
         languages: ["en", "hi"],
+        pan: "ABCDE1234F",
+        consent: true,
         payout: {
           legal_business_name: "QA Bot Advocates",
           contact_name: "QA Bot",

@@ -48,6 +48,8 @@ test.describe("lawyer journey", () => {
         languages: ["en", "hi"],
         hours_per_week: 10,
         availability_note: "Mon-Fri 7-10pm",
+        pan: "ABCDE1234F",
+        consent: true,
         payout: {
           legal_business_name: "QA Bot Advocates",
           contact_name: "QA Bot",

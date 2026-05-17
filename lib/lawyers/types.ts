@@ -47,6 +47,23 @@ export const LawyerApplyInput = z.object({
     .regex(/^\+?[0-9]{7,15}$/)
     .optional()
     .or(z.literal("")),
+  pan: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "PAN should be 10 chars, format AAAAA9999A."),
+  gstin: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[0-9]{2}[A-Z0-9]{13}$/, "GSTIN should be 15 alphanumeric.")
+    .optional()
+    .or(z.literal("")),
+  consent: z.literal(true, {
+    errorMap: () => ({
+      message: "Please accept the Terms and Privacy Policy to apply."
+    })
+  }),
   payout: z.object({
     legal_business_name: z.string().trim().min(2).max(120),
     contact_name: z.string().trim().min(2).max(120),

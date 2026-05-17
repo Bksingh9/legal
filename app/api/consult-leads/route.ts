@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { notifyMany, getAdminUserIds } from "@/lib/notify/inbox";
 import { classify as classifyLocal } from "@/lib/llm/local/classify";
+import { POLICY_VERSION } from "@/lib/policy/version";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,8 @@ const Body = z.object({
     .regex(/^\+?[0-9 \-]{7,15}$/, "Use a valid phone with country code."),
   email: z.string().email().optional().or(z.literal("")),
   city: z.string().trim().max(80).optional().or(z.literal("")),
-  issue: z.string().trim().min(20).max(400)
+  issue: z.string().trim().min(20).max(400),
+  marketing_opt_in: z.boolean().optional().default(false)
 });
 
 // Vakilsearch-style fast intake: name + phone + 1-line issue. Writes a
@@ -61,7 +63,10 @@ export async function POST(req: Request) {
       email: parsed.email || null,
       city: parsed.city || null,
       issue: parsed.issue,
-      inferred_specialization: inferred
+      inferred_specialization: inferred,
+      consent_policy_version: POLICY_VERSION,
+      consented_at: new Date().toISOString(),
+      marketing_opt_in: parsed.marketing_opt_in
     })
     .select("id")
     .single();

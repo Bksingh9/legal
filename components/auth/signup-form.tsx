@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConsentCheckbox } from "@/components/legal/consent-checkbox";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const Schema = z
@@ -23,6 +24,7 @@ export function SignupForm({ next }: { next: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [consent, setConsent] = useState(false);
   const [state, setState] = useState<"idle" | "submitting" | "sent" | "signed-in" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
@@ -31,6 +33,12 @@ export function SignupForm({ next }: { next: string }) {
     e.preventDefault();
     setState("submitting");
     setMessage(null);
+
+    if (!consent) {
+      setState("error");
+      setMessage("Please accept the Terms and Privacy Policy to continue.");
+      return;
+    }
 
     const parsed = Schema.safeParse({ email, password, confirm });
     if (!parsed.success) {
@@ -98,7 +106,14 @@ export function SignupForm({ next }: { next: string }) {
         onChange={(e) => setConfirm(e.target.value)}
         disabled={state !== "idle" && state !== "error"}
       />
-      <Button type="submit" disabled={state === "submitting" || state === "sent"}>
+      <ConsentCheckbox
+        checked={consent}
+        onChange={setConsent}
+        variant="compact"
+        disabled={state === "submitting"}
+      />
+
+      <Button type="submit" disabled={state === "submitting" || state === "sent" || !consent}>
         {state === "submitting" ? "Creating account…" : state === "sent" ? "Check your inbox" : "Create account"}
       </Button>
       {message ? (

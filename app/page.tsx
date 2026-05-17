@@ -18,11 +18,14 @@ export default function HomePage() {
             </p>
             <p className="mt-4 text-xs">© {new Date().getFullYear()} LegalDesk AI</p>
           </div>
-          <nav className="flex flex-wrap gap-5 text-sm">
+          <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
             <a href="/talk-to-lawyer" className="hover:text-ink-700">Talk to a lawyer</a>
             <a href="/for-lawyers" className="hover:text-ink-700">For advocates</a>
+            <a href="/about" className="hover:text-ink-700">About</a>
             <a href="/privacy" className="hover:text-ink-700">Privacy</a>
             <a href="/terms" className="hover:text-ink-700">Terms</a>
+            <a href="/refunds-cancellation" className="hover:text-ink-700">Refunds</a>
+            <a href="/grievance" className="hover:text-ink-700">Grievance</a>
             <a href="mailto:hello@legaldesk.ai" className="hover:text-ink-700">Contact</a>
           </nav>
         </div>

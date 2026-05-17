@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { notifyUser, notifyMany, getAdminUserIds } from "@/lib/notify/inbox";
+import { POLICY_VERSION } from "@/lib/policy/version";
 import type { LawyerApplyInputType, LawyerSelfView } from "./types";
 
 export interface LawyerRow {
@@ -58,6 +59,8 @@ export async function upsertLawyerApplication(args: {
     availability_note: input.availability_note ?? null,
     notification_email: input.payout.contact_email,
     notification_whatsapp: input.notification_whatsapp || input.payout.contact_phone,
+    pan: input.pan,
+    gstin: input.gstin || null,
     payout_account: input.payout,
     digilocker_uri: input.digilocker_uri ?? null,
     route_account_id: args.routeAccountId,
@@ -110,7 +113,9 @@ export async function upsertLawyerApplication(args: {
       user_id: args.userId,
       lawyer_id: lawyerRow.id,
       payload: input,
-      status: "submitted"
+      status: "submitted",
+      consent_policy_version: POLICY_VERSION,
+      consented_at: new Date().toISOString()
     })
     .select("*")
     .single();

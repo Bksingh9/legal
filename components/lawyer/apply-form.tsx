@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConsentCheckbox } from "@/components/legal/consent-checkbox";
 import {
   SPECIALIZATIONS,
   LAWYER_LANGUAGES,
@@ -43,6 +44,9 @@ export function LawyerApplyForm() {
   const [vpa, setVpa] = useState("");
   const [acct, setAcct] = useState("");
   const [ifsc, setIfsc] = useState("");
+  const [pan, setPan] = useState("");
+  const [gstin, setGstin] = useState("");
+  const [consent, setConsent] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -67,6 +71,9 @@ export function LawyerApplyForm() {
           hours_per_week: typeof hoursPerWeek === "number" ? hoursPerWeek : 5,
           availability_note: availabilityNote || undefined,
           notification_whatsapp: notificationWhatsapp || undefined,
+          pan: pan.toUpperCase(),
+          gstin: gstin ? gstin.toUpperCase() : undefined,
+          consent,
           payout: {
             legal_business_name: legalBiz,
             contact_name: contactName,
@@ -208,6 +215,31 @@ export function LawyerApplyForm() {
 
       <fieldset className="flex flex-col gap-3">
         <legend className="text-sm font-semibold uppercase tracking-wide text-neutral-600">
+          Tax identifiers (required by Razorpay Route for payouts)
+        </legend>
+        <label className="flex flex-col gap-1 text-sm">
+          <span>PAN * <span className="text-neutral-500">(AAAAA9999A)</span></span>
+          <Input
+            value={pan}
+            onChange={(e) => setPan(e.target.value.toUpperCase())}
+            placeholder="ABCDE1234F"
+            maxLength={10}
+            required
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span>GSTIN <span className="text-neutral-500">(optional — if you charge GST)</span></span>
+          <Input
+            value={gstin}
+            onChange={(e) => setGstin(e.target.value.toUpperCase())}
+            placeholder="27ABCDE1234F1Z5"
+            maxLength={15}
+          />
+        </label>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-3">
+        <legend className="text-sm font-semibold uppercase tracking-wide text-neutral-600">
           Payout (provide UPI VPA <em>or</em> bank account + IFSC)
         </legend>
         <label className="flex flex-col gap-1 text-sm">
@@ -242,7 +274,14 @@ export function LawyerApplyForm() {
         </div>
       </fieldset>
 
-      <Button type="submit" disabled={stage === "submitting"}>
+      <ConsentCheckbox
+        checked={consent}
+        onChange={setConsent}
+        variant="compact"
+        disabled={stage === "submitting"}
+      />
+
+      <Button type="submit" disabled={stage === "submitting" || !consent}>
         {stage === "submitting" ? "Submitting..." : "Submit application"}
       </Button>
       {message ? (
