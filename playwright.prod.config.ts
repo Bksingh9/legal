@@ -80,6 +80,11 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] }
     },
     {
+      name: "journey-a11y",
+      testMatch: /journey-a11y\.spec\.ts$/,
+      use: { ...devices["Desktop Chrome"] }
+    },
+    {
       name: "teardown",
       testMatch: /_setup\/auth\.teardown\.ts$/,
       dependencies: ["authed"]

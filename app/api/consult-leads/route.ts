@@ -6,6 +6,7 @@ import { classify as classifyLocal } from "@/lib/llm/local/classify";
 import { POLICY_VERSION } from "@/lib/policy/version";
 import { rateLimitOrReject } from "@/lib/rate-limit/check";
 import { verifyTurnstile } from "@/lib/captcha/turnstile";
+import { trackServerEvent } from "@/lib/analytics/posthog-node";
 
 export const runtime = "nodejs";
 
@@ -102,6 +103,13 @@ export async function POST(req: Request) {
       link: "/admin/leads"
     });
   }
+
+  // Analytics fire-and-forget.
+  void trackServerEvent(row.id, "lead.submitted", {
+    inferred_specialization: inferred,
+    has_city: Boolean(parsed.city),
+    has_email: Boolean(parsed.email)
+  });
 
   return NextResponse.json({
     ok: true,

@@ -31,6 +31,21 @@ interface RazorpayWebhookPayload {
         status: string;
       };
     };
+    subscription?: {
+      entity: {
+        id: string;
+        status: string;
+        current_end: number;
+      };
+    };
+    refund?: {
+      entity: {
+        id: string;
+        payment_id: string;
+        amount: number;
+        status: string;
+      };
+    };
   };
 }
 
@@ -50,8 +65,57 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
+  // Subscription lifecycle events.
+  if (
+    body.event === "subscription.activated" ||
+    body.event === "subscription.charged" ||
+    body.event === "subscription.cancelled" ||
+    body.event === "subscription.completed" ||
+    body.event === "subscription.halted"
+  ) {
+    const sub = body.payload.subscription?.entity;
+    if (sub) {
+      const { getSupabaseServiceClient } = await import("@/lib/supabase/server");
+      const supa = getSupabaseServiceClient();
+      if (supa) {
+        let nextStatus: "active" | "past_due" | "cancelled" | "expired" = "active";
+        if (sub.status === "halted" || sub.status === "pending") nextStatus = "past_due";
+        else if (sub.status === "cancelled") nextStatus = "cancelled";
+        else if (sub.status === "completed" || sub.status === "expired") nextStatus = "expired";
+
+        await supa
+          .from("subscriptions")
+          .update({
+            status: nextStatus,
+            paid_until: sub.current_end
+              ? new Date(sub.current_end * 1000).toISOString()
+              : null
+          })
+          .eq("razorpay_subscription_id", sub.id);
+      }
+    }
+    return NextResponse.json({ ok: true, handled: body.event });
+  }
+
+  // Refund processed by Razorpay (could be admin-initiated via our
+  // /api/admin/payments/[id]/refund route or via Razorpay dashboard).
+  if (body.event === "refund.processed" || body.event === "refund.created") {
+    const refund = body.payload.refund?.entity;
+    if (refund) {
+      const { getSupabaseServiceClient } = await import("@/lib/supabase/server");
+      const supa = getSupabaseServiceClient();
+      if (supa) {
+        await supa
+          .from("payments")
+          .update({ status: "refunded" })
+          .eq("razorpay_payment_id", refund.payment_id);
+      }
+    }
+    return NextResponse.json({ ok: true, handled: body.event });
+  }
+
   if (body.event !== "payment.captured") {
-    // Acknowledge other events (auth, failed, refund) without acting.
+    // Acknowledge other events without acting.
     return NextResponse.json({ ok: true, ignored: body.event });
   }
 

@@ -10,11 +10,11 @@
 //     Next-internal code paths.
 const cspParts = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://challenges.cloudflare.com",
-  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://challenges.cloudflare.com https://unpkg.com",
+  "style-src 'self' 'unsafe-inline' https://unpkg.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://lumberjack.razorpay.com https://challenges.cloudflare.com https://meet.jit.si https://*.sentry.io",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.razorpay.com https://lumberjack.razorpay.com https://challenges.cloudflare.com https://meet.jit.si https://*.sentry.io https://app.posthog.com https://*.posthog.com",
   "frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://meet.jit.si https://*.jit.si https://challenges.cloudflare.com",
   "media-src 'self' blob: https:",
   "worker-src 'self' blob:",

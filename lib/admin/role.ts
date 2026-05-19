@@ -1,12 +1,10 @@
 import { getSupabaseServerClient, getSupabaseServiceClient } from "@/lib/supabase/server";
 
-// Admin gate. Requires:
-// - a Supabase session (auth.getUser via SSR cookies)
-// - users.role = 'admin' on the matching row
-//
-// Falls open in mock mode (no Supabase configured) so developers can
-// exercise the admin queue UI locally; production deployments must set
-// NEXT_PUBLIC_SUPABASE_URL.
+// Admin gate. Source of truth: the `user_role_grants` table from
+// migration 0014. Falls back to `users.role` for the boot scenario
+// where the grants table hasn't been backfilled yet. Falls open in
+// mock mode (no Supabase configured) so developers can exercise the
+// admin queue UI locally.
 
 export async function requireAdmin(): Promise<
   | { ok: true; userId: string; mock: boolean }
@@ -28,7 +26,21 @@ export async function requireAdmin(): Promise<
   const service = getSupabaseServiceClient();
   if (!service) return { ok: false, reason: "unconfigured" };
 
-  const { data, error } = await service
+  // Primary: user_role_grants table. Honours revoked_at.
+  const { data: grants } = await service
+    .from("user_role_grants")
+    .select("role, revoked_at")
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .is("revoked_at", null)
+    .limit(1);
+  if (grants && grants.length > 0) {
+    return { ok: true, userId: user.id, mock: false };
+  }
+
+  // Fallback to users.role for the boot scenario (covered by the
+  // 0007 trigger; the 0014 migration also mirrors into grants).
+  const { data: userRow, error } = await service
     .from("users")
     .select("role")
     .eq("id", user.id)
@@ -37,7 +49,7 @@ export async function requireAdmin(): Promise<
     console.error("[admin/role] lookup", error);
     return { ok: false, reason: "forbidden" };
   }
-  if ((data as { role?: string } | null)?.role !== "admin") {
+  if ((userRow as { role?: string } | null)?.role !== "admin") {
     return { ok: false, reason: "forbidden" };
   }
   return { ok: true, userId: user.id, mock: false };

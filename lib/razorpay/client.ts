@@ -101,3 +101,83 @@ function safeEqual(a: string, b: string): boolean {
     return false;
   }
 }
+
+// Issue a refund against a captured payment. Returns the Razorpay
+// refund object. Falls back to a mock id when keys aren't configured.
+export interface RazorpayRefund {
+  id: string;
+  payment_id: string;
+  amount: number; // paise
+  currency: "INR";
+  status: "queued" | "pending" | "processed" | "failed";
+}
+
+export async function refundPayment(args: {
+  payment_id: string;
+  amount_paise?: number; // omit for full refund
+  notes?: Record<string, string>;
+}): Promise<RazorpayRefund> {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) {
+    return {
+      id: `rfnd_mock_${args.payment_id.slice(-6)}`,
+      payment_id: args.payment_id,
+      amount: args.amount_paise ?? 0,
+      currency: "INR",
+      status: "processed"
+    };
+  }
+  const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+  const body: Record<string, unknown> = { speed: "normal", notes: args.notes ?? {} };
+  if (typeof args.amount_paise === "number") body.amount = args.amount_paise;
+  const res = await fetch(
+    `${RAZORPAY_API}/payments/${encodeURIComponent(args.payment_id)}/refund`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${auth}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(body)
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`razorpay refund ${res.status}: ${text.slice(0, 400)}`);
+  }
+  return (await res.json()) as RazorpayRefund;
+}
+
+// Fetch a subscription's current state (used by the cron renewal job).
+export interface RazorpaySubscription {
+  id: string;
+  status:
+    | "created"
+    | "authenticated"
+    | "active"
+    | "pending"
+    | "halted"
+    | "cancelled"
+    | "completed"
+    | "expired"
+    | "paused";
+  current_end: number; // epoch seconds
+  paid_count: number;
+  notes: Record<string, string>;
+}
+
+export async function fetchSubscription(
+  subscriptionId: string
+): Promise<RazorpaySubscription | null> {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) return null;
+  const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+  const res = await fetch(
+    `${RAZORPAY_API}/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    { headers: { authorization: `Basic ${auth}` } }
+  );
+  if (!res.ok) return null;
+  return (await res.json()) as RazorpaySubscription;
+}

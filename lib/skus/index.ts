@@ -3,6 +3,8 @@ import { meta as replyLegalNotice } from "./reply-legal-notice";
 import { meta as rentAgreement } from "./rent-agreement-11m";
 import { meta as consumerComplaint } from "./consumer-complaint-ncdrc";
 import { meta as rtiApplication } from "./rti-application";
+import { meta as chequeBounceS138 } from "./cheque-bounce-s138";
+import { meta as employmentNda } from "./employment-nda";
 import type { SkuMeta } from "./types";
 
 const all: readonly SkuMeta[] = [
@@ -10,7 +12,9 @@ const all: readonly SkuMeta[] = [
   replyLegalNotice,
   rentAgreement,
   consumerComplaint,
-  rtiApplication
+  rtiApplication,
+  chequeBounceS138,
+  employmentNda
 ];
 
 export const SKU_REGISTRY: Record<string, SkuMeta> = Object.fromEntries(

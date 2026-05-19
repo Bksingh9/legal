@@ -1,0 +1,37 @@
+# Dependabot configuration — opens weekly PRs against the development
+# branch (not main) so the maintainer can batch-review.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    target-branch: "claude/legaldesk-ai-spec-StZVL"
+    open-pull-requests-limit: 10
+    labels:
+      - "deps"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Pin Next.js + React to the major we built against. Manual bump.
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    target-branch: "claude/legaldesk-ai-spec-StZVL"
+    open-pull-requests-limit: 5
+    labels:
+      - "deps"
+      - "ci"
