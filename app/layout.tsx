@@ -1,7 +1,22 @@
 import type { Metadata } from "next";
+import { Inter, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { HeaderBell } from "@/components/notifications/header-bell";
 import { PostHogProvider } from "@/components/analytics/posthog-provider";
+import { SiteNav } from "@/components/landing/site-nav";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap"
+});
+
+const display = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-display",
+  display: "swap"
+});
 
 export const metadata: Metadata = {
   title: "LegalDesk AI — AI-powered legal help for India",
@@ -27,9 +42,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${display.variable}`}>
       <body className="min-h-dvh font-sans">
         <PostHogProvider />
+        <SiteNav />
         <HeaderBell />
         {children}
       </body>

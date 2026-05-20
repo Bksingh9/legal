@@ -17,7 +17,7 @@ import { test, expect, type Page, type APIResponse } from "@playwright/test";
 //   - Razorpay checkout (would touch the demo payment infra).
 
 const PUBLIC_PAGES = [
-  { path: "/", titleFragment: "LegalDesk", h1: /AI-powered legal help for India/i },
+  { path: "/", titleFragment: "LegalDesk", h1: /Resolve.*in 60 seconds/i },
   { path: "/triage", titleFragment: "AI triage", h1: /Tell us what happened/i },
   { path: "/documents/legal-notice", titleFragment: "LegalDesk", h1: /Legal notice/i },
   { path: "/pricing", titleFragment: "Pricing", h1: /Pay per document|Plus|Pricing/i },
@@ -66,8 +66,8 @@ test.describe("public pages", () => {
   test("landing CTAs link to the live product surfaces (not waitlist)", async ({ page }) => {
     await page.goto("/");
     const talkCta = page.getByRole("link", { name: /Talk to a lawyer/i }).first();
-    const triageCta = page.getByRole("link", { name: /Free AI triage/i });
-    const docsCta = page.getByRole("link", { name: /Browse documents/i });
+    const triageCta = page.getByRole("link", { name: /Start free triage/i }).first();
+    const docsCta = page.getByRole("link", { name: /Browse documents/i }).first();
     await expect(talkCta).toBeVisible();
     await expect(triageCta).toBeVisible();
     await expect(docsCta).toBeVisible();
@@ -220,14 +220,15 @@ test.describe("SEO + robots + OG", () => {
 test.describe("tiers section + landing content", () => {
   test("renders all 4 tier cards with prices", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText(/Tier 1 — AI Triage/i)).toBeVisible();
-    await expect(page.getByText(/Tier 2 — Document Automation/i)).toBeVisible();
-    await expect(page.getByText(/Tier 3 — Talk to a Lawyer/i)).toBeVisible();
-    await expect(page.getByText(/LegalDesk Plus/i)).toBeVisible();
-    // Spot-check pricing literals from spec §3.
-    await expect(page.getByText(/Legal notice — ₹499/i)).toBeVisible();
-    await expect(page.getByText(/Rent agreement \(11-month\) — ₹399/i)).toBeVisible();
-    await expect(page.getByText(/₹999 \/ year/i)).toBeVisible();
+    // The landing tiers now use shorter names; the underlying offering is the same.
+    await expect(page.getByText(/^Triage$/i).first()).toBeVisible();
+    await expect(page.getByText(/^Documents$/i).first()).toBeVisible();
+    await expect(page.getByText(/Lawyer call/i).first()).toBeVisible();
+    await expect(page.getByText(/LegalDesk Plus/i).first()).toBeVisible();
+    // Spot-check pricing literals from spec §3 (separator changed from em-dash to interpunct).
+    await expect(page.getByText(/Legal notice.*₹499/i).first()).toBeVisible();
+    await expect(page.getByText(/Rent agreement.*₹399/i).first()).toBeVisible();
+    await expect(page.getByText(/₹999/i).first()).toBeVisible();
   });
 });
 

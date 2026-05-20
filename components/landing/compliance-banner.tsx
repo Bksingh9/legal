@@ -1,3 +1,5 @@
+// Small marketing strip used on legal/policy pages.
+// The marketing home now uses TrustStrip + footer compliance text instead.
 export function ComplianceBanner() {
   return (
     <div className="border-b border-ink-100 bg-ink-50">

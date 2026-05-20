@@ -22,8 +22,12 @@ test.describe("customer journey", () => {
     await expect(
       page.getByRole("link", { name: /Talk to a lawyer/i }).first()
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /Free AI triage/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Browse documents/i })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Start free triage/i }).first()
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Browse documents/i }).first()
+    ).toBeVisible();
   });
 
   let leadId: string | null = null;

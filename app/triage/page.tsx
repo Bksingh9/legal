@@ -1,5 +1,8 @@
 import { TriageChat } from "@/components/triage/triage-chat";
+import { PageHeader } from "@/components/landing/page-header";
+import { SiteFooter } from "@/components/landing/site-footer";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { Shield, Zap, FileDown } from "lucide-react";
 
 export const metadata = {
   title: "AI triage — LegalDesk AI",
@@ -21,23 +24,56 @@ export default async function TriagePage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-12">
-      <header>
-        <h1 className="text-2xl font-semibold">Tell us what happened.</h1>
-        <p className="mt-2 text-sm text-neutral-600">
-          We will return a one-page Case Prep with the likely legal framework
-          and the next three steps. This is not legal advice.
-        </p>
-      </header>
+    <main>
+      <PageHeader
+        eyebrow="Free AI triage"
+        title="Tell us what happened."
+        description="We return a one-page Case Prep with the likely legal framework and the next three steps. About 60 seconds. Not legal advice."
+      />
 
-      {!signedIn ? (
-        <p className="rounded-md border border-ink-100 bg-ink-50 p-3 text-xs text-ink-700">
-          Try it now — no sign-up needed. Sign in only when you want to save
-          the result, generate a document, or talk to a lawyer.
-        </p>
-      ) : null}
+      <section className="bg-white py-16 md:py-20">
+        <div className="container max-w-3xl">
+          {!signedIn ? (
+            <div className="mb-8 flex items-start gap-3 rounded-2xl border border-ink-100 bg-ink-50/60 p-4 text-sm text-ink-700">
+              <Zap size={16} className="mt-0.5 shrink-0 text-accent-500" />
+              <p>
+                Try it now — no sign-up needed. Sign in only when you want to save
+                the result, generate a document, or talk to a lawyer.
+              </p>
+            </div>
+          ) : null}
 
-      <TriageChat />
+          <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm md:p-8">
+            <TriageChat />
+          </div>
+
+          <ul className="mt-10 grid gap-4 text-sm text-ink-700 md:grid-cols-3">
+            <li className="flex items-start gap-3 rounded-xl bg-ink-50/60 p-4">
+              <Shield size={18} className="mt-0.5 shrink-0 text-brand-600" />
+              <span>
+                <span className="font-medium text-ink-900">Private.</span> Your text
+                is stored in Mumbai and deletable from /account at any time.
+              </span>
+            </li>
+            <li className="flex items-start gap-3 rounded-xl bg-ink-50/60 p-4">
+              <FileDown size={18} className="mt-0.5 shrink-0 text-brand-600" />
+              <span>
+                <span className="font-medium text-ink-900">Portable.</span> Download
+                the result as a PDF and share it with anyone.
+              </span>
+            </li>
+            <li className="flex items-start gap-3 rounded-xl bg-ink-50/60 p-4">
+              <Zap size={18} className="mt-0.5 shrink-0 text-brand-600" />
+              <span>
+                <span className="font-medium text-ink-900">Actionable.</span> Each
+                result links to the right document or advocate match.
+              </span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <SiteFooter />
     </main>
   );
 }
