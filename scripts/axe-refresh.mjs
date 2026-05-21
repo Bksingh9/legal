@@ -3,7 +3,19 @@
 import { chromium } from "playwright";
 import AxeBuilder from "@axe-core/playwright";
 
-const PAGES = ["/", "/triage", "/talk-to-lawyer", "/lawyer/apply", "/pricing"];
+const PAGES = [
+  "/",
+  "/triage",
+  "/talk-to-lawyer",
+  "/lawyer/apply",
+  "/pricing",
+  "/documents",
+  "/documents/legal-notice",
+  "/for-lawyers",
+  "/blog",
+  "/blog/how-to-send-legal-notice-india",
+  "/about"
+];
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });

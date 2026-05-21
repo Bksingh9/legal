@@ -1,5 +1,9 @@
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { listPublishedPosts } from "@/lib/blog/loader";
+import { PageHeader } from "@/components/landing/page-header";
+import { SiteFooter } from "@/components/landing/site-footer";
+import { Reveal } from "@/components/ui/motion";
 
 export const metadata = {
   title: "Legal explainers — LegalDesk AI",
@@ -12,33 +16,50 @@ export const revalidate = 3600;
 export default async function BlogIndex() {
   const posts = await listPublishedPosts();
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-12">
-      <header>
-        <p className="text-xs uppercase tracking-wide text-neutral-500">Blog</p>
-        <h1 className="text-2xl font-semibold">Plain-language Indian legal explainers</h1>
-        <p className="mt-2 text-sm text-neutral-600">
-          Written for non-lawyers. Reviewed before publish. Not legal advice;
-          consult a qualified advocate for case-specific opinion.
-        </p>
-      </header>
-      {posts.length === 0 ? (
-        <p className="text-sm text-neutral-500">No articles published yet.</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {posts.map((p) => (
-            <li key={p.slug}>
-              <Link
-                href={`/blog/${p.slug}`}
-                className="flex flex-col gap-1 rounded-md border border-neutral-200 p-4 hover:border-neutral-900"
-              >
-                <span className="text-base font-medium">{p.title}</span>
-                <span className="text-sm text-neutral-600">{p.description}</span>
-                <span className="text-xs text-neutral-500">{p.published_at}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+    <main>
+      <PageHeader
+        eyebrow="Writing"
+        title="Plain-language Indian legal explainers."
+        description="Written for non-lawyers. Reviewed before publish. Not legal advice — consult a qualified advocate for case-specific opinion."
+      />
+
+      <section className="bg-white py-16 md:py-20">
+        <div className="container max-w-3xl">
+          {posts.length === 0 ? (
+            <p className="rounded-2xl border border-ink-100 bg-ink-50/60 p-8 text-center text-sm text-ink-400">
+              No articles published yet. Check back soon.
+            </p>
+          ) : (
+            <ul className="divide-y divide-ink-100 border-y border-ink-100">
+              {posts.map((p, i) => (
+                <Reveal as="li" key={p.slug} delay={i * 0.04}>
+                  <Link
+                    href={`/blog/${p.slug}`}
+                    className="group flex flex-col gap-3 py-7 transition-colors hover:text-ink-900"
+                  >
+                    <span className="text-xs uppercase tracking-wider text-ink-400">
+                      {p.published_at}
+                    </span>
+                    <h2 className="font-serif text-2xl text-ink-900 md:text-3xl">
+                      {p.title}
+                    </h2>
+                    <p className="text-pretty text-ink-700">{p.description}</p>
+                    <span className="inline-flex items-center gap-1 text-sm font-medium text-brand-700">
+                      Read explainer
+                      <ArrowUpRight
+                        size={14}
+                        className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                      />
+                    </span>
+                  </Link>
+                </Reveal>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <SiteFooter />
     </main>
   );
 }

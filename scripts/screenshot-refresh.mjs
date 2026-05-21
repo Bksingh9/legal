@@ -8,7 +8,13 @@ const pages = [
   { url: "/triage", name: "02-triage" },
   { url: "/talk-to-lawyer", name: "03-talk-to-lawyer" },
   { url: "/lawyer/apply", name: "04-lawyer-apply" },
-  { url: "/pricing", name: "05-pricing" }
+  { url: "/pricing", name: "05-pricing" },
+  { url: "/documents", name: "06-documents" },
+  { url: "/documents/legal-notice", name: "07-document-sku" },
+  { url: "/for-lawyers", name: "08-for-lawyers" },
+  { url: "/blog", name: "09-blog" },
+  { url: "/blog/how-to-send-legal-notice-india", name: "10-blog-post" },
+  { url: "/about", name: "11-about" }
 ];
 
 const OUT = "test-results/refresh";

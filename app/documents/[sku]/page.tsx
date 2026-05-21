@@ -1,7 +1,11 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, ShieldCheck, Zap } from "lucide-react";
 import { getSkuMeta, listSkus, LAWYER_REVIEW_ADDON_PAISE } from "@/lib/skus";
 import { getFormSpec } from "@/lib/forms";
 import { DocumentForm } from "@/components/documents/document-form";
+import { PageHeader } from "@/components/landing/page-header";
+import { SiteFooter } from "@/components/landing/site-footer";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export function generateStaticParams() {
@@ -36,47 +40,74 @@ export default async function DocumentSkuPage({
   const totalIfAddon = meta.price_paise + LAWYER_REVIEW_ADDON_PAISE;
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-wide text-neutral-500">
-          Document automation · {meta.category}
-        </p>
-        <h1 className="text-2xl font-semibold">{meta.title}</h1>
-        <p className="text-sm text-neutral-600">{meta.short_description}</p>
-        <p className="text-sm font-medium">
-          {fmt(meta.price_paise)}
-          {meta.allow_addon_lawyer_review ? (
-            <span className="text-neutral-500"> · {fmt(totalIfAddon)} with lawyer review</span>
+    <main>
+      <PageHeader eyebrow={`Document · ${meta.category}`} title={meta.title} description={meta.short_description} />
+
+      <section className="bg-white py-16 md:py-20">
+        <div className="container max-w-3xl">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <Link
+              href="/documents"
+              className="inline-flex items-center gap-1.5 text-sm text-ink-700 transition-colors hover:text-ink-900"
+            >
+              <ArrowLeft size={14} />
+              All documents
+            </Link>
+            <p className="text-sm font-medium text-ink-900">
+              {fmt(meta.price_paise)}
+              {meta.allow_addon_lawyer_review ? (
+                <span className="ml-2 font-normal text-ink-400">
+                  · {fmt(totalIfAddon)} with lawyer review
+                </span>
+              ) : null}
+            </p>
+          </div>
+
+          {!signedIn ? (
+            <div className="mb-6 flex items-start gap-3 rounded-xl border border-ink-100 bg-ink-50/60 p-4 text-sm text-ink-700">
+              <Zap size={16} className="mt-0.5 shrink-0 text-accent-500" />
+              <p>
+                Free to use — no sign-up needed. Fill the form, preview the
+                draft, download the PDF/DOCX. Sign in only when you want to
+                save it, share it, or add lawyer review.
+              </p>
+            </div>
           ) : null}
-        </p>
-      </header>
+          {mockMode ? (
+            <div className="mb-6 rounded-xl border border-accent-200 bg-accent-50 p-3 text-xs text-ink-900">
+              Running in mock mode.
+            </div>
+          ) : null}
 
-      {!signedIn ? (
-        <p className="rounded-md border border-ink-100 bg-ink-50 p-3 text-xs text-ink-700">
-          Free to use — no sign-up needed. Fill the form, preview the
-          draft, download the PDF/DOCX. Sign in only when you want to
-          save it, share it, or add lawyer review.
-        </p>
-      ) : null}
-      {mockMode ? (
-        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          Running in mock mode.
-        </p>
-      ) : null}
+          <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm md:p-8">
+            <DocumentForm
+              sku={{
+                id: meta.id,
+                title: meta.title,
+                short_description: meta.short_description,
+                price_paise: meta.price_paise,
+                allow_addon_lawyer_review: meta.allow_addon_lawyer_review
+              }}
+              spec={spec}
+              razorpayConfigured={Boolean(process.env.RAZORPAY_KEY_ID)}
+              upiConfigured={Boolean(process.env.UPI_VPA && process.env.UPI_MERCHANT_NAME)}
+              siteUrl={process.env.NEXT_PUBLIC_SITE_URL}
+            />
+          </div>
 
-      <DocumentForm
-        sku={{
-          id: meta.id,
-          title: meta.title,
-          short_description: meta.short_description,
-          price_paise: meta.price_paise,
-          allow_addon_lawyer_review: meta.allow_addon_lawyer_review
-        }}
-        spec={spec}
-        razorpayConfigured={Boolean(process.env.RAZORPAY_KEY_ID)}
-        upiConfigured={Boolean(process.env.UPI_VPA && process.env.UPI_MERCHANT_NAME)}
-        siteUrl={process.env.NEXT_PUBLIC_SITE_URL}
-      />
+          <div className="mt-10 flex items-start gap-3 rounded-xl bg-ink-50/60 p-4 text-sm text-ink-700">
+            <ShieldCheck size={18} className="mt-0.5 shrink-0 text-brand-600" />
+            <p>
+              Drafts are generated from your inputs and reviewed against the
+              latest Indian statutes. They are not legal advice. The optional
+              ₹499 lawyer-review add-on returns a 24-hour review and a stamped
+              copy for court use.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <SiteFooter />
     </main>
   );
 }

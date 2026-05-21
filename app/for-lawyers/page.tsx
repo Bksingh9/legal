@@ -1,4 +1,15 @@
 import Link from "next/link";
+import {
+  ShieldCheck,
+  Wallet,
+  EyeOff,
+  Workflow,
+  ArrowRight,
+  Mail
+} from "lucide-react";
+import { PageHeader } from "@/components/landing/page-header";
+import { SiteFooter } from "@/components/landing/site-footer";
+import { Reveal } from "@/components/ui/motion";
 
 export const metadata = {
   title: "For advocates — LegalDesk AI",
@@ -6,98 +17,150 @@ export const metadata = {
     "Join LegalDesk AI's verified advocate panel. AI-routed clients, no advertising risk, UPI payouts, BCI Rule 36 compliant by construction."
 };
 
+const valueProps = [
+  {
+    icon: Workflow,
+    title: "Matched, not marketed",
+    body: "Offers arrive in your dashboard based on specialization, language, state, and an anonymous internal rating. No client hunting."
+  },
+  {
+    icon: EyeOff,
+    title: "Anonymous on every public surface",
+    body: "We never publish your name, photo, testimonials, or rank. BCI Rule 36 compliant by construction."
+  },
+  {
+    icon: Wallet,
+    title: "UPI payouts, 24h after the call",
+    body: "55–65% of the consultation fee after platform fee + GST. Weekly settlement, fully Indian rails."
+  },
+  {
+    icon: ShieldCheck,
+    title: "You keep the client",
+    body: "Once a relationship begins, you're free to take it off-platform. We earn on first contact, you earn on retention."
+  }
+];
+
+const steps = [
+  "Apply with your Bar Council ID, state, and specializations.",
+  "We verify against the relevant state bar directory (24–48 h).",
+  "Offers appear in your dashboard. Accept within 30 minutes when in window.",
+  "Take the call on browser-native Jitsi — no SDK install.",
+  "UPI payout to your VPA 24 hours after the call ends."
+];
+
+const asks = [
+  "Minimum 5 hours/week of stated availability",
+  "Accept or decline offers within 30 minutes when in window",
+  "Two-party consent before any call recording",
+  "Generated drafts must be reviewed before use in court"
+];
+
 export default function ForLawyersPage() {
   return (
-    <main className="container max-w-3xl py-16">
-      <p className="text-sm font-medium uppercase tracking-wide text-brand-600">
-        For advocates
-      </p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink-900 md:text-4xl">
-        Get matched with paying clients. Keep your name off our marketing.
-      </h1>
-      <p className="mt-4 max-w-2xl text-lg text-ink-700">
-        LegalDesk AI routes Indian legal queries to verified advocates by
-        specialization, language, and state. You see only the offers that
-        match your profile. We never publish your name, photograph or
-        rating — BCI Rule 36 compliant by construction.
-      </p>
+    <main>
+      <PageHeader
+        eyebrow="For advocates"
+        title="Get paying clients. Keep your name off our marketing."
+        description="LegalDesk routes verified Indian legal queries to advocates by specialization, language, and state. You see only the offers that match your profile — and we never publish you."
+      />
 
-      <section className="mt-12 grid gap-6 md:grid-cols-2">
-        <Card title="How it works">
-          <ol className="ml-4 list-decimal space-y-1 text-sm text-ink-700">
-            <li>Apply with your Bar Council ID, state and specializations.</li>
-            <li>We verify against the relevant state bar directory (24–48 h).</li>
-            <li>Once verified, consultation offers appear in your dashboard.</li>
-            <li>Accept within your stated window; first to accept wins.</li>
-            <li>Take the call/video on browser-native Jitsi — no SDK.</li>
-            <li>UPI payout to your VPA 24 h after the consult completes.</li>
-          </ol>
-        </Card>
-        <Card title="What you keep">
-          <ul className="ml-4 list-disc space-y-1 text-sm text-ink-700">
-            <li>55–65% of the consultation fee, after platform fee + GST.</li>
-            <li>The client relationship — you can take them off-platform.</li>
-            <li>Your anonymity in every public surface (anon_slug only).</li>
-            <li>Your professional discretion — accept or decline anything.</li>
-          </ul>
-        </Card>
-        <Card title="BCI Rule 36 compliance">
-          <p className="text-sm text-ink-700">
-            We do not advertise individual advocates. Our public surfaces
-            show no names, photos, testimonials or rankings. You appear in
-            client-facing UI as an anonymous reference (specialization +
-            years + language + state). The platform brands itself, not
-            you.
-          </p>
-        </Card>
-        <Card title="What we ask">
-          <ul className="ml-4 list-disc space-y-1 text-sm text-ink-700">
-            <li>Minimum 5 hours/week of stated availability.</li>
-            <li>Accept or decline offers within 30 minutes when in window.</li>
-            <li>Two-party consent before any call recording.</li>
-            <li>Generated drafts must be reviewed before client uses in court.</li>
-          </ul>
-        </Card>
-      </section>
-
-      <section className="mt-12 rounded-md border border-ink-100 bg-ink-50 p-6">
-        <h2 className="text-xl font-semibold text-ink-900">
-          Apply to the verified advocate panel
-        </h2>
-        <p className="mt-2 text-sm text-ink-700">
-          Takes 5 minutes. You&apos;ll need your Bar Council ID and your
-          UPI VPA for payouts.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link
-            href="/lawyer/apply"
-            className="inline-flex h-12 items-center justify-center rounded-md bg-brand-600 px-6 text-base font-medium text-white hover:bg-brand-700"
-          >
-            Apply now
-          </Link>
-          <a
-            href="mailto:lawyers@legaldesk.ai"
-            className="inline-flex h-12 items-center justify-center rounded-md border border-ink-200 bg-white px-6 text-base font-medium text-ink-900 hover:bg-ink-50"
-          >
-            Email us first
-          </a>
+      <section className="bg-white py-16 md:py-20">
+        <div className="container max-w-5xl">
+          <div className="grid gap-5 md:grid-cols-2">
+            {valueProps.map((v, i) => (
+              <Reveal
+                key={v.title}
+                delay={i * 0.05}
+                className="rounded-2xl border border-ink-100 bg-white p-6 transition hover:border-ink-200 hover:shadow-lg"
+              >
+                <v.icon size={22} className="text-brand-600" />
+                <h3 className="mt-4 text-lg font-medium text-ink-900">{v.title}</h3>
+                <p className="mt-2 text-sm text-ink-700">{v.body}</p>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 
-      <p className="mt-10 text-xs text-ink-400">
-        We are not a law firm. We do not represent clients. The platform is
-        a technology intermediary connecting users with independently
-        practicing advocates.
-      </p>
-    </main>
-  );
-}
+      <section className="bg-ink-50 py-16 md:py-20">
+        <div className="container max-w-5xl">
+          <div className="grid gap-12 md:grid-cols-2">
+            <Reveal>
+              <p className="text-xs uppercase tracking-[0.2em] text-brand-600">How it works</p>
+              <h2 className="mt-3 font-serif text-3xl text-ink-900 md:text-4xl">
+                From application to first payout.
+              </h2>
+              <ol className="mt-8 space-y-5">
+                {steps.map((s, i) => (
+                  <li key={s} className="flex gap-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-night-900 text-xs font-medium text-white">
+                      {i + 1}
+                    </span>
+                    <span className="pt-0.5 text-sm text-ink-700">{s}</span>
+                  </li>
+                ))}
+              </ol>
+            </Reveal>
+            <Reveal delay={0.1}>
+              <p className="text-xs uppercase tracking-[0.2em] text-brand-600">What we ask</p>
+              <h2 className="mt-3 font-serif text-3xl text-ink-900 md:text-4xl">
+                Small, professional commitments.
+              </h2>
+              <ul className="mt-8 space-y-4 text-sm text-ink-700">
+                {asks.map((a) => (
+                  <li key={a} className="flex gap-3">
+                    <span className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-accent-500" />
+                    <span>{a}</span>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          </div>
+        </div>
+      </section>
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-md border border-ink-100 p-5">
-      <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
-      <div className="mt-3">{children}</div>
-    </div>
+      <section className="bg-white py-16 md:py-20">
+        <div className="container max-w-3xl">
+          <Reveal className="overflow-hidden rounded-2xl border border-night-900 bg-night-900 p-8 text-white md:p-12">
+            <p className="text-xs uppercase tracking-[0.2em] text-accent-400">Get started</p>
+            <h2 className="mt-3 font-serif text-3xl md:text-4xl">
+              Apply to the verified advocate panel.
+            </h2>
+            <p className="mt-4 max-w-xl text-night-100/80">
+              Takes 5 minutes. You&apos;ll need your Bar Council ID and your UPI
+              VPA for payouts. No account needed — we email a sign-in link after
+              you submit.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/lawyer/apply"
+                className="group inline-flex h-12 items-center gap-2 rounded-full bg-white px-7 text-base font-medium text-night-900 transition hover:bg-night-100"
+              >
+                Apply now
+                <ArrowRight
+                  size={18}
+                  className="transition-transform group-hover:translate-x-0.5"
+                />
+              </Link>
+              <a
+                href="mailto:lawyers@legaldesk.ai"
+                className="inline-flex h-12 items-center gap-2 rounded-full border border-white/20 px-7 text-base font-medium text-white transition hover:bg-white/10"
+              >
+                <Mail size={16} />
+                Email us first
+              </a>
+            </div>
+          </Reveal>
+
+          <p className="mt-10 text-center text-xs text-ink-400">
+            We are not a law firm. We do not represent clients. The platform is
+            a technology intermediary connecting users with independently
+            practicing advocates.
+          </p>
+        </div>
+      </section>
+
+      <SiteFooter />
+    </main>
   );
 }
