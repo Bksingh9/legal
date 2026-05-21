@@ -1,15 +1,21 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DpdpControls } from "@/components/account/dpdp-controls";
 import { PasswordCard } from "@/components/auth/password-card";
+import { DashboardShell } from "@/components/landing/dashboard-shell";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Your data — LegalDesk AI" };
 export const dynamic = "force-dynamic";
 
+const tabs = [
+  { href: "/account", label: "Your data" },
+  { href: "/account/inbox", label: "Inbox" },
+  { href: "/referrals", label: "Referrals" }
+];
+
 export default async function AccountPage() {
   const supa = getSupabaseServerClient();
-  let mockMode = !supa;
+  const mockMode = !supa;
   if (supa) {
     const {
       data: { user }
@@ -18,35 +24,22 @@ export default async function AccountPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-12">
-      <header>
-        <p className="text-xs uppercase tracking-wide text-neutral-500">Your data</p>
-        <h1 className="text-2xl font-semibold">Access, correction, erasure</h1>
-        <p className="mt-2 text-sm text-neutral-600">
-          DPDP Act 2023 rights. Export, correct or erase your data at any
-          time. We log every action against the audit trail.
-        </p>
-      </header>
-
+    <DashboardShell
+      eyebrow="Your data"
+      title="Access, correction, erasure"
+      description="DPDP Act 2023 rights. Export, correct, or erase your data at any time. We log every action against the audit trail."
+      tabs={tabs}
+      activeHref="/account"
+      maxWidth="md"
+    >
       {mockMode ? (
-        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          Running in mock mode. Actions return stub responses without a
-          configured Supabase project.
-        </p>
+        <div className="rounded-xl border border-accent-200 bg-accent-50 p-3 text-xs text-ink-900">
+          Running in mock mode. Actions return stub responses without a configured Supabase project.
+        </div>
       ) : null}
 
       <DpdpControls />
-
       <PasswordCard />
-
-      <nav className="mt-2 flex flex-wrap gap-4 text-sm text-brand-700">
-        <Link href="/account/inbox" className="underline">
-          Inbox
-        </Link>
-        <Link href="/referrals" className="underline">
-          Referrals
-        </Link>
-      </nav>
-    </main>
+    </DashboardShell>
   );
 }

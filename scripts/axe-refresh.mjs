@@ -14,7 +14,14 @@ const PAGES = [
   "/for-lawyers",
   "/blog",
   "/blog/how-to-send-legal-notice-india",
-  "/about"
+  "/about",
+  "/privacy",
+  "/terms",
+  "/refunds-cancellation",
+  "/grievance",
+  "/auth/login",
+  "/auth/signup",
+  "/auth/forgot-password"
 ];
 
 const browser = await chromium.launch();

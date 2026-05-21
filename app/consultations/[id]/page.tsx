@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getConsultationById } from "@/lib/consult/persistence";
 import { ConsultationRoom } from "@/components/consult/consultation-room";
+import { DashboardShell } from "@/components/landing/dashboard-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -22,23 +23,20 @@ export default async function ConsultationPage({
   if (!c) notFound();
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-12">
-      <header>
-        <p className="text-xs uppercase tracking-wide text-neutral-500">
-          Consultation · {c.pack ?? "—"} · {c.specialization ?? "—"}
-        </p>
-        <h1 className="text-2xl font-semibold">Consultation waiting room</h1>
-        <p className="mt-1 text-sm text-neutral-600">
-          Status updates live as the lawyer accepts and the call gets ready.
-        </p>
-      </header>
-
-      <ConsultationRoom
-        consultationId={c.id}
-        initialStatus={c.status}
-        initialJitsiUrl={c.jitsi_room_url ?? null}
-        initialChannel={c.type}
-      />
-    </main>
+    <DashboardShell
+      eyebrow={`Consultation · ${c.pack ?? "—"} · ${c.specialization ?? "—"}`}
+      title="Consultation waiting room"
+      description="Status updates live as the lawyer accepts and the call gets ready."
+      maxWidth="lg"
+    >
+      <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm md:p-8">
+        <ConsultationRoom
+          consultationId={c.id}
+          initialStatus={c.status}
+          initialJitsiUrl={c.jitsi_room_url ?? null}
+          initialChannel={c.type}
+        />
+      </div>
+    </DashboardShell>
   );
 }

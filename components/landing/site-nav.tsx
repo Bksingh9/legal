@@ -26,8 +26,8 @@ export function SiteNav() {
       className={[
         "fixed inset-x-0 top-0 z-40 transition-all duration-300",
         scrolled
-          ? "border-b border-white/10 bg-night-900/70 backdrop-blur-xl"
-          : "border-b border-transparent bg-transparent"
+          ? "border-b border-white/10 bg-night-900/80 backdrop-blur-xl"
+          : "border-b border-white/5 bg-night-900/40 backdrop-blur-md"
       ].join(" ")}
     >
       <div className="container flex h-14 items-center justify-between gap-6 text-sm">

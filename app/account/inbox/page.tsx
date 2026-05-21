@@ -1,10 +1,17 @@
 import { redirect } from "next/navigation";
 import { Inbox } from "@/components/notifications/inbox";
 import { PushRegister } from "@/components/notifications/push-register";
+import { DashboardShell } from "@/components/landing/dashboard-shell";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Inbox — LegalDesk AI" };
 export const dynamic = "force-dynamic";
+
+const tabs = [
+  { href: "/account", label: "Your data" },
+  { href: "/account/inbox", label: "Inbox" },
+  { href: "/referrals", label: "Referrals" }
+];
 
 export default async function InboxPage() {
   const supa = getSupabaseServerClient();
@@ -16,29 +23,25 @@ export default async function InboxPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-12">
-      <header>
-        <p className="text-xs uppercase tracking-wide text-neutral-500">Your inbox</p>
-        <h1 className="text-2xl font-semibold">Notifications</h1>
-        <p className="mt-2 text-sm text-neutral-600">
-          Every offer, schedule update, and consultation event lands here.
-        </p>
-      </header>
+    <DashboardShell
+      eyebrow="Your inbox"
+      title="Notifications"
+      description="Every offer, schedule update, and consultation event lands here."
+      tabs={tabs}
+      activeHref="/account/inbox"
+      maxWidth="md"
+    >
+      <Inbox />
 
-      <section>
-        <Inbox />
-      </section>
-
-      <section className="rounded-md border border-ink-100 p-4">
-        <p className="text-sm font-medium">Off-app pings</p>
-        <p className="mt-1 text-xs text-neutral-600">
-          Get notified even when this tab is closed. Browser-native, no
-          third-party push service.
+      <div className="rounded-2xl border border-ink-100 bg-ink-50/60 p-5">
+        <p className="text-sm font-medium text-ink-900">Off-app pings</p>
+        <p className="mt-1 text-xs text-ink-700">
+          Get notified even when this tab is closed. Browser-native, no third-party push service.
         </p>
         <div className="mt-3">
           <PushRegister />
         </div>
-      </section>
-    </main>
+      </div>
+    </DashboardShell>
   );
 }

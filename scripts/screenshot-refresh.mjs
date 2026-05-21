@@ -14,7 +14,14 @@ const pages = [
   { url: "/for-lawyers", name: "08-for-lawyers" },
   { url: "/blog", name: "09-blog" },
   { url: "/blog/how-to-send-legal-notice-india", name: "10-blog-post" },
-  { url: "/about", name: "11-about" }
+  { url: "/about", name: "11-about" },
+  { url: "/privacy", name: "12-privacy" },
+  { url: "/terms", name: "13-terms" },
+  { url: "/refunds-cancellation", name: "14-refunds" },
+  { url: "/grievance", name: "15-grievance" },
+  { url: "/auth/login", name: "16-login" },
+  { url: "/auth/signup", name: "17-signup" },
+  { url: "/auth/forgot-password", name: "18-forgot" }
 ];
 
 const OUT = "test-results/refresh";

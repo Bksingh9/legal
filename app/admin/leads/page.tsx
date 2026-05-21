@@ -1,9 +1,15 @@
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/role";
 import { AdminLeadsTable } from "@/components/admin/leads-table";
+import { DashboardShell } from "@/components/landing/dashboard-shell";
 
 export const metadata = { title: "Lead queue — LegalDesk admin" };
 export const dynamic = "force-dynamic";
+
+const tabs = [
+  { href: "/admin/lawyers", label: "Lawyer queue" },
+  { href: "/admin/leads", label: "Lead queue" }
+];
 
 export default async function AdminLeadsPage() {
   const gate = await requireAdmin();
@@ -15,16 +21,15 @@ export default async function AdminLeadsPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-12">
-      <header>
-        <p className="text-xs uppercase tracking-wide text-neutral-500">Admin</p>
-        <h1 className="text-2xl font-semibold">Lead queue</h1>
-        <p className="mt-2 text-sm text-neutral-600">
-          Call-back leads from <code>/talk-to-lawyer</code>. Mark as
-          called once you&apos;ve reached them. Drop if irrelevant.
-        </p>
-      </header>
+    <DashboardShell
+      eyebrow="Admin"
+      title="Lead queue"
+      description="Call-back leads from /talk-to-lawyer. Mark as called once you've reached them. Drop if irrelevant."
+      tabs={tabs}
+      activeHref="/admin/leads"
+      maxWidth="xl"
+    >
       <AdminLeadsTable />
-    </main>
+    </DashboardShell>
   );
 }
