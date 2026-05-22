@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneField } from "@/components/ui/phone-field";
+import { IfscField } from "@/components/ui/ifsc-field";
 import { ConsentCheckbox } from "@/components/legal/consent-checkbox";
 import {
   SPECIALIZATIONS,
@@ -36,11 +38,11 @@ export function LawyerApplyForm() {
   const [langs, setLangs] = useState<LawyerLanguage[]>([]);
   const [hoursPerWeek, setHoursPerWeek] = useState<number | "">(5);
   const [availabilityNote, setAvailabilityNote] = useState("");
-  const [notificationWhatsapp, setNotificationWhatsapp] = useState("");
+  const [notificationWhatsapp, setNotificationWhatsapp] = useState("+91");
   const [legalBiz, setLegalBiz] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [contactPhone, setContactPhone] = useState("+91");
   const [vpa, setVpa] = useState("");
   const [acct, setAcct] = useState("");
   const [ifsc, setIfsc] = useState("");
@@ -70,7 +72,10 @@ export function LawyerApplyForm() {
           languages: langs,
           hours_per_week: typeof hoursPerWeek === "number" ? hoursPerWeek : 5,
           availability_note: availabilityNote || undefined,
-          notification_whatsapp: notificationWhatsapp || undefined,
+          notification_whatsapp:
+            notificationWhatsapp && notificationWhatsapp !== "+91"
+              ? notificationWhatsapp
+              : undefined,
           pan: pan.toUpperCase(),
           gstin: gstin ? gstin.toUpperCase() : undefined,
           consent,
@@ -203,14 +208,11 @@ export function LawyerApplyForm() {
             maxLength={200}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span>WhatsApp number for alerts (optional, falls back to contact phone)</span>
-          <Input
-            value={notificationWhatsapp}
-            onChange={(e) => setNotificationWhatsapp(e.target.value)}
-            placeholder="+91XXXXXXXXXX"
-          />
-        </label>
+        <PhoneField
+          value={notificationWhatsapp}
+          onChange={setNotificationWhatsapp}
+          label="WhatsApp number for alerts (optional, falls back to contact phone)"
+        />
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">
@@ -255,10 +257,12 @@ export function LawyerApplyForm() {
             <span>Email *</span>
             <Input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} required />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span>Phone (E.164, +91...) *</span>
-            <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} required />
-          </label>
+          <PhoneField
+            value={contactPhone}
+            onChange={setContactPhone}
+            label="Phone *"
+            required
+          />
           <label className="flex flex-col gap-1 text-sm">
             <span>UPI VPA</span>
             <Input value={vpa} onChange={(e) => setVpa(e.target.value)} placeholder="name@bank" />
@@ -267,10 +271,7 @@ export function LawyerApplyForm() {
             <span>Bank account no.</span>
             <Input value={acct} onChange={(e) => setAcct(e.target.value)} />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span>IFSC</span>
-            <Input value={ifsc} onChange={(e) => setIfsc(e.target.value)} />
-          </label>
+          <IfscField value={ifsc} onChange={setIfsc} />
         </div>
       </fieldset>
 

@@ -3,14 +3,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneField } from "@/components/ui/phone-field";
+import { PincodeField } from "@/components/ui/pincode-field";
 import { ConsentCheckbox } from "@/components/legal/consent-checkbox";
 
 type Stage = "idle" | "submitting" | "submitted" | "error";
 
 export function LeadCapture() {
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+91");
   const [issue, setIssue] = useState("");
+  const [pincode, setPincode] = useState("");
   const [city, setCity] = useState("");
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
@@ -101,17 +104,12 @@ export function LeadCapture() {
           required
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">Phone (with country code) *</span>
-        <Input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+91 98xxxxxxxx"
-          autoComplete="tel"
-          inputMode="tel"
-          required
-        />
-      </label>
+      <PhoneField
+        value={phone}
+        onChange={setPhone}
+        label="Phone *"
+        required
+      />
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">
           Describe your legal situation in one line *
@@ -131,15 +129,13 @@ export function LeadCapture() {
         </span>
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm">
-          <span>City (optional)</span>
-          <Input
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder="Mumbai"
-            autoComplete="address-level2"
-          />
-        </label>
+        <PincodeField
+          value={pincode}
+          onChange={setPincode}
+          onResolve={(r) => setCity(r.city)}
+          label="PIN code (optional)"
+          fallbackCity={city || undefined}
+        />
         <label className="flex flex-col gap-1 text-sm">
           <span>Email (optional — for case prep)</span>
           <Input

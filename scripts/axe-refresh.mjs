@@ -31,7 +31,8 @@ const page = await ctx.newPage();
 let totalBlocking = 0;
 
 for (const path of PAGES) {
-  await page.goto(`http://localhost:3000${path}`, { waitUntil: "networkidle" });
+  await page.goto(`http://localhost:3000${path}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(400);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

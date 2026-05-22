@@ -35,7 +35,8 @@ await mkdir(OUT, { recursive: true });
 for (const p of pages) {
   const url = `http://localhost:3000${p.url}`;
   console.log(`→ ${url}`);
-  await page.goto(url, { waitUntil: "networkidle" });
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
   // Scroll the page to trigger whileInView reveals, then return to top.
   await page.evaluate(async () => {
     const step = window.innerHeight * 0.8;
