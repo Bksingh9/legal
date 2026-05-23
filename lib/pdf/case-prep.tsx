@@ -3,11 +3,13 @@ import {
   Page,
   Text,
   View,
+  Link,
   StyleSheet,
   renderToBuffer
 } from "@react-pdf/renderer";
 import { TRIAGE_DISCLAIMER } from "@/lib/anthropic/prompts";
 import type { CasePrep, Classification } from "@/lib/anthropic/types";
+import type { GroundedFrameworkEntry } from "@/lib/legal-research/types";
 import * as React from "react";
 
 // Hindi/Devanagari glyphs require a font registered with @react-pdf.
@@ -40,6 +42,12 @@ const styles = StyleSheet.create({
     marginRight: 4
   },
   pillRow: { flexDirection: "row", marginBottom: 14 },
+  verifiedTag: {
+    color: "#1b7a3d",
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold"
+  },
+  sourceLink: { color: "#2563eb", fontSize: 7, textDecoration: "none" },
   disclaimer: {
     marginTop: 18,
     padding: 10,
@@ -65,12 +73,16 @@ const styles = StyleSheet.create({
 interface Props {
   classification: Classification;
   prep: CasePrep;
+  // Grounded framework entries (1:1 with prep.framework). When present,
+  // verified Acts get an "IndiaCode-verified" marker + source link.
+  groundedFramework?: GroundedFrameworkEntry[];
   generatedAt: Date;
   queryId?: string;
 }
 
 function CasePrepDocument(props: Props) {
-  const { prep, classification, generatedAt, queryId } = props;
+  const { prep, classification, groundedFramework, generatedAt, queryId } = props;
+  const framework = groundedFramework ?? prep.framework.map((f) => ({ ...f, verified: false }));
   return (
     <Document
       title="LegalDesk AI — Case Prep"
@@ -94,15 +106,23 @@ function CasePrepDocument(props: Props) {
           <Text style={styles.body}>{prep.summary}</Text>
         </View>
 
-        {prep.framework.length > 0 ? (
+        {framework.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Likely framework</Text>
-            {prep.framework.map((f, i) => (
-              <Text key={i} style={[styles.body, styles.listItem]}>
-                • {f.act}
-                {f.section ? `, Section ${f.section}` : ""}
-                {f.note ? ` — ${f.note}` : ""}
-              </Text>
+            {framework.map((f, i) => (
+              <View key={i} style={styles.listItem}>
+                <Text style={styles.body}>
+                  • {f.act}
+                  {f.section ? `, Section ${f.section}` : ""}
+                  {f.note ? ` — ${f.note}` : ""}
+                  {f.verified ? <Text style={styles.verifiedTag}>  ✓ IndiaCode-verified</Text> : null}
+                </Text>
+                {f.verified && f.source_url ? (
+                  <Link style={styles.sourceLink} src={f.source_url}>
+                    {f.official_title ?? "View on IndiaCode"}
+                  </Link>
+                ) : null}
+              </View>
             ))}
           </View>
         ) : null}

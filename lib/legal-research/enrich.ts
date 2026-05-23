@@ -1,4 +1,5 @@
 import { getLegalResearch, isLegalResearchConfigured } from "./client";
+import type { GroundedFrameworkEntry } from "./types";
 import type { CasePrep } from "@/lib/anthropic/types";
 
 // Compliance note (SPEC.md §1): the public Case Prep cites Acts and section
@@ -7,16 +8,7 @@ import type { CasePrep } from "@/lib/anthropic/types";
 // does NOT touch the case_law namespace. Case-law search stays available via
 // the client for internal / advocate-only surfaces, not this one.
 
-export interface GroundedFrameworkEntry {
-  act: string;
-  section?: string;
-  note?: string;
-  // Enrichment — present only when a confident legislation match is found.
-  verified: boolean;
-  official_title?: string;
-  source_url?: string;
-  india_code_id?: string;
-}
+export type { GroundedFrameworkEntry };
 
 // Score alone is NOT a safe verification signal. Verified against the live
 // connector (2026-05): a semantic search for "Negotiable Instruments Act"

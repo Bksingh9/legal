@@ -76,3 +76,16 @@ export interface SourceInfo {
   date_range: { min_year: number; max_year: number } | null;
   notes: string | null;
 }
+
+// A Case Prep framework entry after legislation grounding. `verified` is true
+// only when the cited Act was confidently matched in IndiaCode; the title /
+// url / id fields are present only then. See lib/legal-research/enrich.ts.
+export interface GroundedFrameworkEntry {
+  act: string;
+  section?: string;
+  note?: string;
+  verified: boolean;
+  official_title?: string;
+  source_url?: string;
+  india_code_id?: string;
+}

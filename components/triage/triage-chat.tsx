@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Disclaimer } from "@/components/triage/disclaimer";
 import { VoiceRecorder } from "@/components/triage/voice-recorder";
 import type { CasePrep, TriageClassification } from "@/lib/anthropic/types";
+import type { GroundedFrameworkEntry } from "@/lib/legal-research/types";
 
 type ClassifyResponse = TriageClassification & {
   ok: boolean;
@@ -16,6 +17,7 @@ type PrepResponse = {
   ok: boolean;
   disclaimer: string;
   prep: CasePrep;
+  grounded_framework?: GroundedFrameworkEntry[];
   prep_pdf_url?: string | null;
 };
 
@@ -141,22 +143,52 @@ export function TriageChat() {
             <p className="mt-1 whitespace-pre-wrap text-sm">{prep.prep.summary}</p>
           </section>
 
-          {prep.prep.framework.length > 0 ? (
-            <section>
-              <h3 className="text-sm font-medium uppercase tracking-wide text-neutral-500">
-                Likely framework
-              </h3>
-              <ul className="mt-1 list-disc pl-5 text-sm">
-                {prep.prep.framework.map((f, i) => (
-                  <li key={i}>
-                    {f.act}
-                    {f.section ? `, Section ${f.section}` : ""}
-                    {f.note ? ` — ${f.note}` : ""}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+          {(() => {
+            const framework =
+              prep.grounded_framework ??
+              prep.prep.framework.map((f) => ({ ...f, verified: false }));
+            if (framework.length === 0) return null;
+            return (
+              <section>
+                <h3 className="text-sm font-medium uppercase tracking-wide text-neutral-500">
+                  Likely framework
+                </h3>
+                <ul className="mt-1 list-disc pl-5 text-sm">
+                  {framework.map((f, i) => (
+                    <li key={i}>
+                      {f.act}
+                      {f.section ? `, Section ${f.section}` : ""}
+                      {f.note ? ` — ${f.note}` : ""}
+                      {f.verified ? (
+                        <>
+                          {" "}
+                          <span
+                            title={f.official_title}
+                            className="ml-1 inline-flex items-center rounded bg-green-50 px-1.5 py-0.5 text-[11px] font-medium text-green-700"
+                          >
+                            ✓ IndiaCode
+                          </span>
+                          {f.source_url ? (
+                            <>
+                              {" "}
+                              <a
+                                href={f.source_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-blue-600 underline"
+                              >
+                                source
+                              </a>
+                            </>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })()}
 
           {prep.prep.next_steps.length > 0 ? (
             <section>

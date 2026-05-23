@@ -67,12 +67,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Prep failed." }, { status: 502 });
   }
 
+  // Best-effort: verify the cited Acts against primary legislation. No-ops
+  // gracefully (returns unverified entries) when the connector is unset.
+  const groundedFramework = await groundCasePrepFramework(prep.framework);
+
   let pdfUrl: string | null = null;
   if (parsed.query_id && userId) {
     try {
       const pdf = await renderCasePrepPdf({
         classification,
         prep,
+        groundedFramework,
         generatedAt: new Date(),
         queryId: parsed.query_id
       });
@@ -91,10 +96,6 @@ export async function POST(req: Request) {
       prepPdfUrl: pdfUrl
     });
   }
-
-  // Best-effort: verify the cited Acts against primary legislation. No-ops
-  // gracefully (returns unverified entries) when the connector is unset.
-  const groundedFramework = await groundCasePrepFramework(prep.framework);
 
   return NextResponse.json({
     ok: true,
