@@ -11,6 +11,7 @@ import {
 import { renderCasePrepPdf } from "@/lib/pdf/case-prep";
 import { uploadCasePrepPdf } from "@/lib/storage/case-prep";
 import { rateLimitOrReject } from "@/lib/rate-limit/check";
+import { groundCasePrepFramework } from "@/lib/legal-research/enrich";
 
 export const runtime = "nodejs";
 
@@ -91,10 +92,15 @@ export async function POST(req: Request) {
     });
   }
 
+  // Best-effort: verify the cited Acts against primary legislation. No-ops
+  // gracefully (returns unverified entries) when the connector is unset.
+  const groundedFramework = await groundCasePrepFramework(prep.framework);
+
   return NextResponse.json({
     ok: true,
     disclaimer: TRIAGE_DISCLAIMER,
     prep,
+    grounded_framework: groundedFramework,
     prep_pdf_url: pdfUrl
   });
 }
