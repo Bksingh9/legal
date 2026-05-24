@@ -71,6 +71,33 @@ export async function rateLimit(
   return { allowed: row.allowed, count: row.hit_count, resetAt: row.reset_at };
 }
 
+// Rate-limits against a caller-supplied key (e.g. "org:<id>:v1-generate")
+// rather than the client IP. Used by the authenticated B2B /api/v1 surface,
+// where the org — not the IP — is the unit of throttling. Same fail-open
+// semantics as rateLimit().
+export async function rateLimitByKey(args: {
+  key: string;
+  max: number;
+  windowSec?: number;
+}): Promise<RateLimitResult> {
+  const supa = getSupabaseServiceClient();
+  const windowSec = args.windowSec ?? 60;
+  if (!supa) {
+    return { allowed: true, count: 0, resetAt: new Date(Date.now() + windowSec * 1000).toISOString() };
+  }
+  const { data, error } = await supa.rpc("rate_limit_check", {
+    in_key: args.key,
+    in_max: args.max,
+    in_window_sec: windowSec
+  });
+  if (error || !data || data.length === 0) {
+    console.error("[rate-limit] rpc failed", error);
+    return { allowed: true, count: 0, resetAt: new Date(Date.now() + windowSec * 1000).toISOString() };
+  }
+  const row = data[0] as { allowed: boolean; hit_count: number; reset_at: string };
+  return { allowed: row.allowed, count: row.hit_count, resetAt: row.reset_at };
+}
+
 // Convenience wrapper that returns a Response object directly when
 // rate-limited. Caller uses it like:
 //   const limited = await rateLimitOrReject(req, { bucket: "..." });

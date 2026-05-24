@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 const tabs = [
   { href: "/admin/lawyers", label: "Lawyer queue" },
-  { href: "/admin/leads", label: "Lead queue" }
+  { href: "/admin/leads", label: "Lead queue" },
+  { href: "/admin/orgs", label: "Organizations" }
 ];
 
 export default async function AdminLeadsPage() {
