@@ -1,4 +1,5 @@
 import { getLegalResearch, isLegalResearchConfigured } from "./client";
+import { lookupIndiaCode } from "./india-code-map";
 import type { GroundedFrameworkEntry } from "./types";
 import type { CasePrep } from "@/lib/anthropic/types";
 
@@ -58,17 +59,33 @@ function titleMatches(citedAct: string, matchedTitle: string): boolean {
 }
 
 // Verifies each Act in a Case Prep framework against Indian legislation.
-// Best-effort: returns the original entries (verified:false) if the connector
-// is unconfigured, the Act is absent, or any lookup fails. Never throws.
+// Two sources, in order: (1) the curated static IndiaCode map, which needs no
+// network and covers the central Acts triage cites; (2) the live connector, as
+// a fallback for Acts outside the map, when configured. Best-effort: returns
+// the original entry (verified:false) when neither source confirms the Act, and
+// never throws.
 export async function groundCasePrepFramework(
   framework: CasePrep["framework"]
 ): Promise<GroundedFrameworkEntry[]> {
   const base: GroundedFrameworkEntry[] = framework.map((f) => ({ ...f, verified: false }));
-  if (!isLegalResearchConfigured() || framework.length === 0) return base;
+  if (framework.length === 0) return base;
 
-  const research = getLegalResearch();
+  const connectorOn = isLegalResearchConfigured();
+  const research = connectorOn ? getLegalResearch() : null;
+
   return Promise.all(
     base.map(async (entry) => {
+      const mapped = lookupIndiaCode(entry.act);
+      if (mapped) {
+        return {
+          ...entry,
+          verified: true,
+          official_title: mapped.official_title,
+          source_url: mapped.source_url,
+          india_code_id: mapped.india_code_id
+        };
+      }
+      if (!research) return entry;
       try {
         const res = await research.search({
           query: entry.act,
