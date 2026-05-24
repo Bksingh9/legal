@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/role";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { notifyUser } from "@/lib/notify/inbox";
+import { finalizePaidDocument } from "@/lib/payments/finalize";
+import { maybeCreditFirstPaid } from "@/lib/referrals/persistence";
 
 export const runtime = "nodejs";
 
@@ -38,7 +40,7 @@ export async function POST(
 
   const { data: payment } = await supa
     .from("payments")
-    .select("id, user_id, amount, method, status")
+    .select("id, user_id, document_id, amount, method, status")
     .eq("id", params.id)
     .maybeSingle();
   if (!payment) return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -61,6 +63,17 @@ export async function POST(
     return NextResponse.json({ error: "Update failed." }, { status: 500 });
   }
 
+  // On verify, deliver the document and fire referral credit — mirrors the
+  // Razorpay webhook capture path so UPI buyers get the same outcome.
+  let finalized: boolean | undefined;
+  if (parsed.action === "verify") {
+    await maybeCreditFirstPaid(payment.user_id);
+    if (payment.document_id) {
+      const result = await finalizePaidDocument(payment.document_id);
+      finalized = result.finalized;
+    }
+  }
+
   // Notify the user.
   await notifyUser({
     userId: payment.user_id,
@@ -76,5 +89,5 @@ export async function POST(
     link: "/account"
   });
 
-  return NextResponse.json({ ok: true, status: nextStatus });
+  return NextResponse.json({ ok: true, status: nextStatus, finalized });
 }
