@@ -1,21 +1,31 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { listConsultsAwaitingPayout, markPayoutReleased } from "@/lib/consult/persistence";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import { checkCronAuth } from "@/lib/cron/auth";
 
 export const runtime = "nodejs";
 
-// Cron-callable. Protect with a shared secret in the X-Cron-Secret header.
-// CRON_SECRET should be set in Vercel project env. The same secret is
-// configured on the cron source (Vercel Cron, GitHub Actions, etc.).
+// Cron-callable. Vercel Cron invokes with GET + Authorization: Bearer
+// CRON_SECRET, so GET is the production path; POST is kept for manual/test
+// triggers. Both share the same secret-gated logic. CRON_SECRET must be set
+// (this releases real money) — unconfigured returns 503.
+export async function GET(req: NextRequest) {
+  return releasePayouts(req);
+}
+
 export async function POST(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
+  return releasePayouts(req);
+}
+
+async function releasePayouts(req: NextRequest) {
+  const { authorized, configured } = checkCronAuth(req);
+  if (!configured) {
     return NextResponse.json(
       { error: "CRON_SECRET not configured." },
       { status: 503 }
     );
   }
-  if (req.headers.get("x-cron-secret") !== secret) {
+  if (!authorized) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 

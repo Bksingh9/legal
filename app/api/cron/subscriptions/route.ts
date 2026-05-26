@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { fetchSubscription } from "@/lib/razorpay/client";
 import { notifyUser } from "@/lib/notify/inbox";
+import { checkCronAuth } from "@/lib/cron/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,13 +11,12 @@ export const dynamic = "force-dynamic";
 // paid_until is past, asks Razorpay for the current state, mirrors
 // the result into our DB, notifies the user on terminal transitions.
 //
-// Triggered by Vercel Cron via the schedule in vercel.json. The
-// CRON_SECRET header is checked to keep the endpoint from being
-// invokable by the public.
+// Triggered by Vercel Cron (GET + Authorization: Bearer CRON_SECRET) via the
+// schedule in vercel.json. Unconfigured (no secret) falls through to the
+// read-only mock path below.
 export async function GET(req: Request) {
-  const expected = process.env.CRON_SECRET;
-  const header = req.headers.get("x-cron-secret");
-  if (expected && header !== expected) {
+  const { authorized, configured } = checkCronAuth(req);
+  if (configured && !authorized) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
