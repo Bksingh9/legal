@@ -16,10 +16,8 @@ const Body = z.object({
 // (method='razorpay' OR null with razorpay_payment_id set). UPI
 // reconciliation refunds happen out-of-band (bank-level reversal),
 // not via this endpoint.
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const gate = await requireAdmin();
   if (!gate.ok) {
     return NextResponse.json(

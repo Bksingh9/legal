@@ -6,10 +6,8 @@ import { waMeLinkFor } from "@/lib/notify/lawyer-alerts";
 
 export const runtime = "nodejs";
 
-export async function POST(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const userId = await getCurrentUserId();
   if (!userId) {
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {

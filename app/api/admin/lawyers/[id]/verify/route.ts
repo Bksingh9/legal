@@ -7,10 +7,8 @@ export const runtime = "nodejs";
 
 const Body = z.object({ notes: z.string().trim().max(2000).optional() });
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const gate = await requireAdmin();
   if (!gate.ok) {
     return NextResponse.json(

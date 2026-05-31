@@ -249,9 +249,10 @@ vercel.json                cron schedule
   which looks like a placeholder. Replace with the actual merchant VPA
   before driving any campaign that links to the UPI checkout. (No
   payments table rows yet, so no real money has been attempted.)
-- **Plan Next.js 15.5.16+ upgrade** — closes the residual 4 high CVEs
-  that 14.2.35 can't reach. Major version: needs a separate branch
-  with full e2e validation (caching/async-API breaking changes).
+- **Plan Next.js 15.5.16+ upgrade** — DONE. Promoted to prod as
+  `next@15.5.18` + `react@19.2.6` (codemod ran cleanly across all
+  dynamic routes; preview build + prod smoke + B2B E2E green; closes
+  the residual high-severity Next CVEs flagged by the 14.2.x audit).
 - **Sentry DSN** — `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN`
 - **PostHog key** — `NEXT_PUBLIC_POSTHOG_KEY`
 - **Cloudflare Turnstile** site + secret keys for bot protection

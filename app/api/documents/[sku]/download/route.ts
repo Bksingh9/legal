@@ -15,10 +15,8 @@ export const runtime = "nodejs";
 // the user delivery (email + WhatsApp) and unlocks the lawyer-review
 // add-on. The download here is the floor of the contract — users always
 // get their document.
-export async function POST(
-  req: Request,
-  { params }: { params: { sku: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ sku: string }> }) {
+  const params = await props.params;
   const limited = await rateLimitOrReject(req, { bucket: "doc-download", max: 30 });
   if (limited) return limited;
 

@@ -6,11 +6,12 @@ import { DashboardShell } from "@/components/landing/dashboard-shell";
 
 export const dynamic = "force-dynamic";
 
-export default async function ConsultationPage({
-  params
-}: {
-  params: { id: string };
-}) {
+export default async function ConsultationPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const supa = getSupabaseServerClient();
   if (supa) {
     const {

@@ -18,11 +18,12 @@ export const dynamic = "force-dynamic";
 // form, preview the rendered draft, and download the free PDF/DOCX
 // without signing up. Auth is required only for "save to inbox",
 // paid lawyer review, and any consultation booking.
-export default async function DocumentSkuPage({
-  params
-}: {
-  params: { sku: string };
-}) {
+export default async function DocumentSkuPage(
+  props: {
+    params: Promise<{ sku: string }>;
+  }
+) {
+  const params = await props.params;
   const meta = getSkuMeta(params.sku);
   const spec = getFormSpec(params.sku);
   if (!meta || !spec) notFound();

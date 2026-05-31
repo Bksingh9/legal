@@ -11,10 +11,8 @@ export const runtime = "nodejs";
 
 const Body = z.object({ consent: z.boolean() });
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const userId = await getCurrentUserId();
   if (!userId) {
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {

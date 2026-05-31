@@ -12,10 +12,8 @@ const Body = z.object({
 // Admin actions on a single lead. The "convert" action is handled by
 // the existing /api/consultations/book endpoint plus a follow-up PATCH
 // here to link the lead to the resulting consultation.
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const gate = await requireAdmin();
   if (!gate.ok) {
     return NextResponse.json(
