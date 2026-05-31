@@ -19,6 +19,14 @@ const nav: Array<{ heading: string; links: Array<{ href: string; label: string }
     ]
   },
   {
+    heading: "For business",
+    links: [
+      { href: "/for-business", label: "Overview" },
+      { href: "/api/docs", label: "API spec" },
+      { href: "mailto:b2b@legaldesk.ai", label: "Talk to sales" }
+    ]
+  },
+  {
     heading: "Company",
     links: [
       { href: "/about", label: "About" },

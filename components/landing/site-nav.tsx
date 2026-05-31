@@ -8,7 +8,8 @@ const links = [
   { href: "/talk-to-lawyer", label: "Talk to a lawyer" },
   { href: "/documents", label: "Documents" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/for-lawyers", label: "For advocates" }
+  { href: "/for-lawyers", label: "For advocates" },
+  { href: "/for-business", label: "For business" }
 ];
 
 export function SiteNav() {

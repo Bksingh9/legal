@@ -195,21 +195,63 @@ tests/e2e/                 117-test prod suite + 17-test local suite
 vercel.json                cron schedule
 ```
 
-## Roadmap from here
+## Recent session deliveries (May 2026 — live on prod)
 
-### Phase 7 — Tier 5 B2B (deferred, spec §3 Tier 5)
-- Schema: `organizations`, `api_keys` (HMAC-signed, scopes,
-  revocation)
-- Public API: `POST /api/v1/documents/generate`, `POST
-  /api/v1/legal-notices/bulk` (CSV fanout)
-- Per-org rate limit using `lib/rate-limit` with `org:<id>` keys
-- `/admin/orgs` for plan + quota management
-- ₹4,999–₹19,999/month plans per spec
+- **Tier 5 B2B shipped** (was Phase 7). Migration `0015_b2b_orgs.sql`
+  applied to prod (organizations / api_keys / org_api_usage + atomic
+  `org_usage_consume` quota function). `lib/orgs/` mints sha256-hashed
+  Bearer keys (`ldk_live_<prefix>_<secret>`) with scoped permissions
+  (`documents:generate`, `notices:bulk`) and constant-time verification.
+  Public surface live: `POST /api/v1/documents/generate`,
+  `POST /api/v1/legal-notices/bulk` (per-org rate-limited via
+  `rateLimitByKey`). Admin UI at `/admin/orgs`. Plans: starter ₹4,999
+  (100 docs/mo), growth ₹9,999 (500), scale ₹19,999 (unlimited).
+  Customer-facing landing at `/for-business`. Verified end-to-end on
+  prod with a real PDF + quota increment + cleanup.
+- **IndiaCode grounding hardened**: `lib/legal-research/india-code-map.ts`
+  ships a curated, live-sourced map of 28 central Acts with real
+  `/handle/123456789/<id>` URLs. `groundCasePrepFramework` consults
+  this first (no network, no secrets); falls back to the live connector
+  for uncovered Acts. UI/PDF show the "IndiaCode" verified badge +
+  source link only on matched Acts.
+- **Payment fixes**: extracted `lib/payments/finalize.ts`
+  (`finalizePaidDocument`) so the Razorpay webhook AND the admin
+  UPI-verify route both deliver the PDF/DOCX, fire the lawyer-review
+  add-on, and email/WhatsApp the customer. `maybeCreditFirstPaid` now
+  fires on both capture paths (was dead code).
+- **Cron jobs actually work now**: both `/api/cron/subscriptions` and
+  `/api/payouts/release` were broken for Vercel Cron (POST-only on
+  payouts, custom `x-cron-secret` header on both). Added
+  `lib/cron/auth.ts` (accepts `Authorization: Bearer <CRON_SECRET>`
+  which Vercel auto-sends, plus legacy `x-cron-secret` for the e2e
+  suite). Payouts now accepts both GET (Cron) and POST (manual).
+- **Security**: Next.js bumped `14.2.15 → 14.2.35`. Closes the critical
+  CVE class fixed within the 14.2.x line (including CVE-2025-29927
+  middleware auth-bypass, CVSS 9.1; not directly exploitable here as
+  the app has no middleware) plus several CVSS 7.5 Server-Component
+  DoS issues. The residual 4 high CVEs require a major Next 15.5.16+
+  upgrade — kept as a separately-validated effort, not a blind bump.
+- **OpenAPI + prod-smoke**: `/api/openapi` now advertises the v1
+  routes + `apiKeyAuth` Bearer scheme + `b2b` tag (visible in RapiDoc
+  at `/api/docs`). `tests/e2e/production-smoke.spec.ts` extended with
+  contract assertions for the v1 auth gates and the cron handlers
+  (GET handled, never 405; always reject unauth with 403/503).
+
+## Roadmap from here
 
 ### Operational gaps (not code)
 - **Razorpay keys** (`rzp_test_*` to start) — drop into Vercel env
-  to activate the full PG path. Webhook URL:
-  `https://legaldesk-ai.vercel.app/api/payments/webhook`
+  to activate the **card-checkout** path. Webhook URL:
+  `https://legaldesk-ai.vercel.app/api/payments/webhook`. Payments
+  already work via the keyless UPI path; Razorpay only adds automated
+  card/netbanking.
+- **Confirm `UPI_VPA`** — the prod env currently has `legaldesk@upi`,
+  which looks like a placeholder. Replace with the actual merchant VPA
+  before driving any campaign that links to the UPI checkout. (No
+  payments table rows yet, so no real money has been attempted.)
+- **Plan Next.js 15.5.16+ upgrade** — closes the residual 4 high CVEs
+  that 14.2.35 can't reach. Major version: needs a separate branch
+  with full e2e validation (caching/async-API breaking changes).
 - **Sentry DSN** — `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN`
 - **PostHog key** — `NEXT_PUBLIC_POSTHOG_KEY`
 - **Cloudflare Turnstile** site + secret keys for bot protection
