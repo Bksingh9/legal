@@ -5,10 +5,8 @@ import { getSkuMeta } from "@/lib/skus";
 export const runtime = "nodejs";
 
 // Public: preview is part of the free-trial conversion path. No auth.
-export async function POST(
-  req: Request,
-  { params }: { params: { sku: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ sku: string }> }) {
+  const params = await props.params;
   const sku = params.sku;
   const meta = getSkuMeta(sku);
   if (!meta) return NextResponse.json({ error: "Unknown SKU." }, { status: 404 });

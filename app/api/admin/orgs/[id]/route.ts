@@ -15,7 +15,8 @@ const PatchBody = z
     message: "Provide plan and/or status."
   });
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const gate = await requireAdmin();
   if (!gate.ok) {
     return NextResponse.json({ error: gate.reason }, { status: gate.reason === "unauthenticated" ? 401 : 403 });

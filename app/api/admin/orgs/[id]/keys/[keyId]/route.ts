@@ -4,10 +4,8 @@ import { revokeApiKey } from "@/lib/orgs/persistence";
 
 export const runtime = "nodejs";
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string; keyId: string } }
-) {
+export async function DELETE(_req: Request, props: { params: Promise<{ id: string; keyId: string }> }) {
+  const params = await props.params;
   const gate = await requireAdmin();
   if (!gate.ok) {
     return NextResponse.json({ error: gate.reason }, { status: gate.reason === "unauthenticated" ? 401 : 403 });

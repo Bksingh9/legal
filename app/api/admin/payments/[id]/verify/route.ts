@@ -16,10 +16,8 @@ const Body = z.object({
 // Admin marks a UPI payment verified (matched against the bank
 // statement) or rejected. Flips payments.status to 'captured' or
 // 'failed' and notifies the paying user.
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const gate = await requireAdmin();
   if (!gate.ok) {
     return NextResponse.json(

@@ -23,10 +23,8 @@ const Body = z.object({
 
 const HOLD_HOURS = 24;
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const userId = await getCurrentUserId();
   if (!userId) {
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {

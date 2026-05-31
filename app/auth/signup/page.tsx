@@ -7,11 +7,12 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Create an account — LegalDesk AI" };
 
-export default async function SignupPage({
-  searchParams
-}: {
-  searchParams: { next?: string };
-}) {
+export default async function SignupPage(
+  props: {
+    searchParams: Promise<{ next?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const next = searchParams.next ?? "/triage";
   const supa = getSupabaseServerClient();
   if (supa) {

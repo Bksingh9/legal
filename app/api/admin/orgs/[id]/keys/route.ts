@@ -11,7 +11,8 @@ const CreateBody = z.object({
   scopes: z.array(z.enum(API_SCOPES as unknown as [string, ...string[]])).min(1)
 });
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const gate = await requireAdmin();
   if (!gate.ok) {
     return NextResponse.json({ error: gate.reason }, { status: gate.reason === "unauthenticated" ? 401 : 403 });
@@ -19,7 +20,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json({ ok: true, keys: await listApiKeys(params.id) });
 }
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const gate = await requireAdmin();
   if (!gate.ok) {
     return NextResponse.json({ error: gate.reason }, { status: gate.reason === "unauthenticated" ? 401 : 403 });
