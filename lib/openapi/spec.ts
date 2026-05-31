@@ -33,7 +33,8 @@ export function buildOpenApi() {
       { name: "leads", description: "Cold lead intake (Vakilsearch-pattern)" },
       { name: "notifications", description: "In-app inbox + Web Push" },
       { name: "dpdp", description: "DPDP Act 2023 data-rights endpoints" },
-      { name: "admin", description: "Admin-only (role=admin)" }
+      { name: "admin", description: "Admin-only (role=admin)" },
+      { name: "b2b", description: "Tier 5 LegalDesk for Business — public /api/v1 surface (Bearer API key)" }
     ],
     paths: {
       "/api/health": {
@@ -184,6 +185,37 @@ export function buildOpenApi() {
         params: ["id"],
         body: ["amount_paise?", "reason?"],
         responses: { "200": "{ ok, refund_id, refund_status }", "403": "Not admin", "409": "Wrong method / status" }
+      }),
+      // Tier 5 B2B — Bearer API key (scopes: documents:generate, notices:bulk).
+      // Per-org monthly quota enforced atomically by org_usage_consume.
+      "/api/v1/documents/generate": op({
+        tags: ["b2b"],
+        summary: "Generate one document programmatically (B2B). Counts 1 against the org's monthly quota.",
+        body: ["sku: string (any registered SKU)", "input: SKU-specific JSON (validated against the SKU's zod schema)"],
+        security: [{ apiKeyAuth: [] }],
+        responses: {
+          "200": "{ ok, document_id, sku, pdf_url, docx_url, usage:{ doc_count, monthly_quota } }",
+          "401": "missing_key | invalid_key",
+          "402": "monthly_quota_exceeded",
+          "403": "scope documents:generate required, or org_suspended",
+          "404": "Unknown SKU",
+          "422": "Validation failed (issues: zod error tree)",
+          "429": "rate_limited (per-org bucket)"
+        }
+      }),
+      "/api/v1/legal-notices/bulk": op({
+        tags: ["b2b"],
+        summary: "Bulk-issue legal notices (B2B; up to 100/request). Charges quota only for VALID items.",
+        body: ["items: Array<legal-notice input> (1..100)"],
+        security: [{ apiKeyAuth: [] }],
+        responses: {
+          "200": "{ ok, sku, count, results:[{index, ok, document_id?, pdf_url?, docx_url?, error?}], usage }",
+          "401": "missing_key | invalid_key",
+          "402": "monthly_quota_exceeded (none consumed)",
+          "403": "scope notices:bulk required, or org_suspended",
+          "422": "No valid items",
+          "429": "rate_limited"
+        }
       })
     },
     components: {
@@ -193,6 +225,12 @@ export function buildOpenApi() {
           in: "cookie",
           name: "sb-<projectRef>-auth-token",
           description: "Supabase SSR session cookie. Set by /auth/callback after Google / magic-link / password sign-in."
+        },
+        apiKeyAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "ldk_live_<prefix>_<secret>",
+          description: "Tier 5 B2B API key. Mint via /admin/orgs/{id}/keys (shown once, sha256-hashed at rest, scope + revocation enforced). Also accepted as `x-api-key: <token>`."
         }
       },
       schemas: {
@@ -219,6 +257,7 @@ function op(spec: {
   params?: string[];
   body?: string[];
   responses: Record<string, string | object>;
+  security?: Array<Record<string, string[]>>;
 }): Record<string, unknown> {
   const httpMethod = "post"; // most endpoints in this app are POSTs
   return {
@@ -244,6 +283,7 @@ function op(spec: {
             }
           }
         : undefined,
+      security: spec.security,
       responses: Object.fromEntries(
         Object.entries(spec.responses).map(([code, body]) => [
           code,

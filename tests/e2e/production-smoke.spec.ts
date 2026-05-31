@@ -185,6 +185,77 @@ test.describe("APIs", () => {
   });
 });
 
+test.describe("B2B v1 API + background jobs (unauthenticated contract)", () => {
+  // Tier 5 public surface — must reject all unauthenticated traffic with a
+  // structured JSON error, never a 500 or a 405. Locks in the auth gate
+  // shipped with migration 0015.
+  test("POST /api/v1/documents/generate with no key -> 401 missing_key", async ({
+    request
+  }) => {
+    const res = await request.post("/api/v1/documents/generate", {
+      data: { sku: "legal-notice", input: {} }
+    });
+    expect(res.status()).toBe(401);
+    expect(await res.json()).toEqual({ error: "missing_key" });
+  });
+
+  test("POST /api/v1/documents/generate with bogus bearer -> 401 invalid_key", async ({
+    request
+  }) => {
+    const res = await request.post("/api/v1/documents/generate", {
+      headers: { authorization: "Bearer ldk_live_bogus_abcdef0123456789abcdef0123456789" },
+      data: { sku: "legal-notice", input: {} }
+    });
+    // 401 invalid_key proves the api_keys table query path works without
+    // crashing (which would surface as 500). Anything other than 401 means
+    // either auth changed or the DB lookup is broken.
+    expect(res.status()).toBe(401);
+    expect((await res.json()).error).toBe("invalid_key");
+  });
+
+  test("POST /api/v1/legal-notices/bulk with no key -> 401 missing_key", async ({
+    request
+  }) => {
+    const res = await request.post("/api/v1/legal-notices/bulk", {
+      data: { items: [{}] }
+    });
+    expect(res.status()).toBe(401);
+    expect(await res.json()).toEqual({ error: "missing_key" });
+  });
+
+  // Vercel Cron invokes with GET + `Authorization: Bearer <CRON_SECRET>`.
+  // Both jobs must (a) accept GET — i.e. NOT 405 — and (b) refuse anything
+  // not carrying the secret. Production has CRON_SECRET set, so unauth
+  // requests should be 403 Forbidden (subscriptions) or 403/503 (payouts).
+  test("GET /api/cron/subscriptions unauthenticated -> 403 (cron secret required in prod)", async ({
+    request
+  }) => {
+    const res = await request.get("/api/cron/subscriptions");
+    // 200 only happens when CRON_SECRET is unset (mock); prod must be 403.
+    expect([200, 403]).toContain(res.status());
+    if (res.status() === 403) {
+      expect((await res.json()).error).toMatch(/forbidden/i);
+    }
+  });
+
+  test("GET /api/payouts/release unauthenticated -> 403 (GET handled, not 405)", async ({
+    request
+  }) => {
+    const res = await request.get("/api/payouts/release");
+    // The key assertion: status is NOT 405 — i.e. GET is now routed.
+    // It's either 403 (secret set in prod) or 503 (unset in test env).
+    expect(res.status()).not.toBe(405);
+    expect([403, 503]).toContain(res.status());
+  });
+
+  test("POST /api/payouts/release unauthenticated -> 403/503 (back-compat preserved)", async ({
+    request
+  }) => {
+    const res = await request.post("/api/payouts/release", { data: {} });
+    expect([403, 503]).toContain(res.status());
+  });
+});
+
 test.describe("SEO + robots + OG", () => {
   test("robots.txt allows crawlers, points at sitemap on the same host", async ({
     request,
