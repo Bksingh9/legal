@@ -4,11 +4,16 @@ import { describeRouting } from "@/lib/llm/router";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Vercel exposes these as system env vars when the project is deployed
-// through its Git integration. Locally they're undefined -> id = "dev".
+// VERCEL_GIT_COMMIT_* are only populated on Git-integration deploys; on
+// CLI deploys (`vercel deploy`) they're empty strings. VERCEL_DEPLOYMENT_ID
+// is always set on Vercel and gives a unique per-build id we can show.
+function nz(s: string | undefined): string | null {
+  return s && s.length > 0 ? s : null;
+}
 function buildId(): string {
   const sha = process.env.VERCEL_GIT_COMMIT_SHA;
-  return sha ? sha.slice(0, 7) : "dev";
+  if (sha && sha.length >= 7) return sha.slice(0, 7);
+  return process.env.VERCEL_DEPLOYMENT_ID || "dev";
 }
 
 export async function GET() {
@@ -18,9 +23,10 @@ export async function GET() {
     time: new Date().toISOString(),
     build: {
       id: buildId(),
-      sha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
-      ref: process.env.VERCEL_GIT_COMMIT_REF ?? null,
-      env: process.env.VERCEL_ENV ?? null
+      sha: nz(process.env.VERCEL_GIT_COMMIT_SHA),
+      ref: nz(process.env.VERCEL_GIT_COMMIT_REF),
+      env: nz(process.env.VERCEL_ENV),
+      deployment_id: nz(process.env.VERCEL_DEPLOYMENT_ID)
     },
     deps: {
       supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
