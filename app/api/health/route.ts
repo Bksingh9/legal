@@ -4,11 +4,24 @@ import { describeRouting } from "@/lib/llm/router";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Vercel exposes these as system env vars when the project is deployed
+// through its Git integration. Locally they're undefined -> id = "dev".
+function buildId(): string {
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA;
+  return sha ? sha.slice(0, 7) : "dev";
+}
+
 export async function GET() {
   return NextResponse.json({
     status: "ok",
     service: "legaldesk-ai",
     time: new Date().toISOString(),
+    build: {
+      id: buildId(),
+      sha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+      ref: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+      env: process.env.VERCEL_ENV ?? null
+    },
     deps: {
       supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
